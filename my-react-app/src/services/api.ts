@@ -2,7 +2,7 @@ import axios from "axios";
 import { supabase } from "./supabaseClient";
 
 const api = axios.create({
-    baseURL: "https://projectmanagement-qpdj.onrender.com/api",
+    baseURL: import.meta.env.VITE_API_URL,
     headers: {
         "Content-Type": "application/json",
     }
