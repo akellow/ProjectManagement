@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
       mode === 'development'
         ? {
             '/api': {
-              target: 'http://localhost:5168',
+              target: 'https://projectmanagement-qpdj.onrender.com',
               changeOrigin: true,
             },
           }
