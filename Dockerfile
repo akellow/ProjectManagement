@@ -3,12 +3,10 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy the project file
-COPY ProjectApi/ProjectApi/ProjectApi.csproj ./ProjectApi/
-COPY ProjectApi/ProjectApi.Infrastructure/ProjectApi.Infrastructure.csproj ./ProjectApi.Infrastructure/
+COPY ProjectApi/ProjectApi/ProjectApi.csproj ./
 
 # Restore dependencies
-WORKDIR /src/ProjectApi
-RUN dotnet restore
+RUN dotnet restore ProjectApi.csproj
 
 # Copy the rest of the source code
 COPY ProjectApi/ProjectApi ./
