@@ -24,7 +24,7 @@ builder.Services.AddSingleton<OrganizationAdminService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -212,10 +212,15 @@ builder.Services
      .AddSorting()
      .AddProjections();
     
-     
+    
 
 
 var app = builder.Build();
+
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+app.Urls.Clear();
+app.Urls.Add($"http://*:{port}");
+
 using (var migrationScope = app.Services.CreateScope())
 {
     var database = migrationScope.ServiceProvider.GetRequiredService<AppDbContext>();
