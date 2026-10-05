@@ -369,7 +369,14 @@ static async Task SeedSuperAdminAsync(IServiceProvider services, IConfiguration 
         if (!context.Employees.Any(employee => employee.UserId == applicationUser.Id))
         {
             var roles = await userManager.GetRolesAsync(applicationUser);
-            context.Employees.Add(new Employee { Name = applicationUser.UserName ?? applicationUser.Id, Role = roles.FirstOrDefault() ?? "User", ContactInfo = applicationUser.Email ?? string.Empty, UserId = applicationUser.Id });
+            context.Employees.Add(new Employee 
+            { 
+                Name = applicationUser.UserName ?? applicationUser.Id, 
+                Role = roles.FirstOrDefault() ?? "User", 
+                ContactInfo = applicationUser.Email ?? string.Empty,
+                Department = "General",
+                UserId = applicationUser.Id 
+            });
         }
     }
     await context.SaveChangesAsync();
