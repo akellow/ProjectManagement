@@ -32,7 +32,10 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
-    policy => policy.WithOrigins("http://localhost:5173")
+    policy => policy.WithOrigins(
+            "http://localhost:5173",
+            "https://project-management-beta-red.vercel.app"
+        )
                      .AllowAnyHeader()
                      .AllowAnyMethod());
 });
