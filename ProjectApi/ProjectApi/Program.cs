@@ -381,6 +381,38 @@ static async Task SeedSuperAdminAsync(IServiceProvider services, IConfiguration 
         }
     }
     await context.SaveChangesAsync();
+
+   var supabaseUrl = configuration["SUPABASE_URL"];
+   var serviceRoleKey = configuration["SUPABASE_SERVICE_ROLE_KEY"];
+   var supabaseUserId = configuration["SUPABASE_SUPERADMIN_ID"];
+
+    
+
+if (!string.IsNullOrWhiteSpace(supabaseUrl) && !string.IsNullOrWhiteSpace(serviceRoleKey) && !string.IsNullOrWhiteSpace(supabaseUserId))
+{
+    using var client = new HttpClient();
+    client.DefaultRequestHeaders.Add("apikey", serviceRoleKey);
+    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {serviceRoleKey}");
+
+    var payload = new
+    {
+        app_metadata = new { role = "superadmin" },
+        user_metadata = new { role = "superadmin" }
+    };
+
+    // Update by email
+    var response = await client.PutAsJsonAsync($"{supabaseUrl}/auth/v1/admin/users?email=darksister647@gmail.com", payload);
+
+    if (response.IsSuccessStatusCode)
+    {
+        Console.WriteLine("✅ Updated darksister647@gmail.com to superadmin in Supabase Auth.");
+    }
+    else
+    {
+        var error = await response.Content.ReadAsStringAsync();
+        Console.WriteLine($"❌ Supabase update failed: {error}");
+    }
+}
 }
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
