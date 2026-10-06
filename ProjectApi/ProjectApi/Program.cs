@@ -37,7 +37,8 @@ builder.Services.AddCors(options =>
             "https://project-management-beta-red.vercel.app"
         )
                      .AllowAnyHeader()
-                     .AllowAnyMethod());
+                     .AllowAnyMethod()
+                     .AllowCredentials());
 });
 
 builder.Services.AddIdentityCore<ApplicationUser>()
