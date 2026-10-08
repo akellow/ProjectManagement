@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
@@ -12,7 +13,6 @@ using ProjectApi.Services;
 using HotChocolate.Data;
 using System.Text;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -22,9 +22,8 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<EmailOtpService>();
 builder.Services.AddSingleton<OrganizationAdminService>();
 
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddDbContext<AppDbContext>(options =>
-         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -32,13 +31,13 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
-    policy => policy.WithOrigins(
-            "http://localhost:5173",
-            "https://project-management-beta-red.vercel.app"
-        )
-                     .AllowAnyHeader()
-                     .AllowAnyMethod()
-                     .AllowCredentials());
+        policy => policy.WithOrigins(
+                "http://localhost:5173",
+                "https://project-management-beta-red.vercel.app"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
 });
 
 builder.Services.AddIdentityCore<ApplicationUser>()
@@ -121,27 +120,27 @@ var authentication = builder.Services.AddAuthentication(options =>
         )
     };
 
-  options.Events = new JwtBearerEvents
-{
-    OnTokenValidated = context =>
+    options.Events = new JwtBearerEvents
     {
-        var metadata = context.Principal?.FindFirst("app_metadata")?.Value;
-        if (!string.IsNullOrWhiteSpace(metadata))
+        OnTokenValidated = context =>
         {
-            using var document = JsonDocument.Parse(metadata);
-            if (document.RootElement.TryGetProperty("role", out var roleClaim)
-                && roleClaim.ValueKind == JsonValueKind.String)
+            var metadata = context.Principal?.FindFirst("app_metadata")?.Value;
+            if (!string.IsNullOrWhiteSpace(metadata))
             {
-                var role = roleClaim.GetString();
-                var identity = (ClaimsIdentity)context.Principal!.Identity!;
-                identity.AddClaim(new Claim("trusted_admin_role", role));
-                identity.AddClaim(new Claim(ClaimTypes.Role, role)); // ✅ ensures [Authorize(Roles="superadmin")] works
+                using var document = JsonDocument.Parse(metadata);
+                if (document.RootElement.TryGetProperty("role", out var roleClaim)
+                    && roleClaim.ValueKind == JsonValueKind.String)
+                {
+                    var role = roleClaim.GetString();
+                    var identity = (ClaimsIdentity)context.Principal!.Identity!;
+                    identity.AddClaim(new Claim("trusted_admin_role", role));
+                    identity.AddClaim(new Claim(ClaimTypes.Role, role));
+                    Console.WriteLine($"✅ Injected app_metadata role: {role}");
+                }
             }
+            return Task.CompletedTask;
         }
-        return Task.CompletedTask;
-    }
-};
-
+    };
 });
 
 if (supabaseIssuer is not null)
@@ -182,23 +181,21 @@ if (supabaseIssuer is not null)
                         && roleClaim.ValueKind == JsonValueKind.String)
                     {
                         AddTrustedAdminRole(context.Principal, roleClaim.GetString());
+                        Console.WriteLine($"✅ Injected app_metadata role: {roleClaim.GetString()}");
                     }
                 }
 
-               //  CHECK user_Metadata.role
-
-                     var userMetadata = context.Principal?.FindFirst("user_metadata")?.Value;
-                     if (!string.IsNullOrWhiteSpace(userMetadata))
-                     {
-                              using var document = JsonDocument.Parse(userMetadata);
-                              if (document.RootElement.TryGetProperty("role", out var roleClaim)
-                                  && roleClaim.ValueKind == JsonValueKind.String)
-                              {
-                                       var role = roleClaim.GetString();
-                                       AddTrustedAdminRole(context.Principal, roleClaim.GetString());
-                                       Console.WriteLine($"Injected user_matadata role: {role});
-                              }
-                     }
+                var userMetadata = context.Principal?.FindFirst("user_metadata")?.Value;
+                if (!string.IsNullOrWhiteSpace(userMetadata))
+                {
+                    using var document = JsonDocument.Parse(userMetadata);
+                    if (document.RootElement.TryGetProperty("role", out var roleClaim)
+                        && roleClaim.ValueKind == JsonValueKind.String)
+                    {
+                        AddTrustedAdminRole(context.Principal, roleClaim.GetString());
+                        Console.WriteLine($"✅ Injected user_metadata role: {roleClaim.GetString()}");
+                    }
+                }
 
                 return Task.CompletedTask;
             }
@@ -212,18 +209,12 @@ else
 
 builder.Services.AddAuthorization(options =>
 {
-         options.DefaultPolicy = new AuthorizationPolicyBuilder()
-                  .RequireAuthenticatedUser()
-                  .AddRequirements(new AdminRequirement())
-                  .Build();
-         
     options.AddPolicy("AdminOnly", policy =>
     {
         policy.RequireAuthenticatedUser();
         policy.RequireAssertion(context =>
         {
             var role = context.User.FindFirstValue("trusted_admin_role");
-
             return !string.IsNullOrWhiteSpace(role)
                 && (role.Equals("admin", StringComparison.OrdinalIgnoreCase)
                     || role.Equals("superadmin", StringComparison.OrdinalIgnoreCase));
@@ -232,15 +223,12 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services
-     .AddGraphQLServer()
-     .AddQueryType<Query>()
-     .AddMutationType<Mutation>()
-     .AddFiltering()
-     .AddSorting()
-     .AddProjections();
-    
-    
-
+    .AddGraphQLServer()
+    .AddQueryType<Query>()
+    .AddMutationType<Mutation>()
+    .AddFiltering()
+    .AddSorting()
+    .AddProjections();
 
 var app = builder.Build();
 
@@ -253,10 +241,10 @@ using (var migrationScope = app.Services.CreateScope())
     var database = migrationScope.ServiceProvider.GetRequiredService<AppDbContext>();
     await database.Database.MigrateAsync();
 }
-await SeedIdentityAsync(app.Services, app.Configuration);  
+await SeedIdentityAsync(app.Services, app.Configuration);
+
 app.UseCors("AllowFrontend");
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -271,27 +259,6 @@ else
 {
     Console.WriteLine("HTTPS redirection skipped because no HTTPS URL is configured for this runtime.");
 }
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast")
-.WithOpenApi();
-
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -315,150 +282,4 @@ static void AddTrustedAdminRole(ClaimsPrincipal? principal, string? role)
     {
         identity.AddClaim(new Claim(ClaimTypes.Role, role));
     }
-}
-
-static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration configuration)
-{
-    using var scope = services.CreateScope();
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    // Seed roles
-    var roles = new[] { "superadmin", "admin", "user" };
-    foreach (var role in roles)
-    {
-        if (!await roleManager.RoleExistsAsync(role))
-        {
-            var result = await roleManager.CreateAsync(new IdentityRole(role));
-            if (result.Succeeded)
-                Console.WriteLine($"✅ Created role: {role}");
-            else
-                Console.WriteLine($"⚠️ Could not create role {role}: {string.Join("; ", result.Errors.Select(e => e.Description))}");
-        }
-    }
-
-    // Superadmin user (configurable username)
-    var superAdminEmail = configuration["Jwt:SuperAdminEmail"] ?? "darksister647@gmail.com";
-    var superAdminPassword = configuration["Jwt:SuperAdminPassword"] ?? "StrongPassword123!";
-    var superAdminUserName = configuration["Jwt:SuperAdminUsername"] ?? "superadmin"; // 👈 configurable
-
-    var superAdminUser = await userManager.FindByEmailAsync(superAdminEmail)
-                        ?? await userManager.FindByNameAsync(superAdminUserName);
-
-    if (superAdminUser == null)
-    {
-        superAdminUser = new ApplicationUser
-        {
-            UserName = superAdminUserName,
-            Email = superAdminEmail,
-            EmailConfirmed = true
-        };
-        var result = await userManager.CreateAsync(superAdminUser, superAdminPassword);
-        if (result.Succeeded)
-            Console.WriteLine($"✅ Created superadmin user: {superAdminEmail} with username {superAdminUserName}");
-        else
-            Console.WriteLine($"⚠️ Could not create superadmin: {string.Join("; ", result.Errors.Select(e => e.Description))}");
-    }
-    else
-    {
-        Console.WriteLine($"ℹ️ Superadmin already exists: {superAdminUser.Email} (username {superAdminUser.UserName})");
-        superAdminUser.EmailConfirmed = true;
-        await userManager.UpdateAsync(superAdminUser);
-
-        if (!await userManager.CheckPasswordAsync(superAdminUser, superAdminPassword))
-        {
-            await userManager.RemovePasswordAsync(superAdminUser);
-            await userManager.AddPasswordAsync(superAdminUser, superAdminPassword);
-            Console.WriteLine($"🔄 Reset password for superadmin: {superAdminEmail}");
-        }
-    }
-
-    if (!await userManager.IsInRoleAsync(superAdminUser, "superadmin"))
-    {
-        var result = await userManager.AddToRoleAsync(superAdminUser, "superadmin");
-        if (result.Succeeded)
-            Console.WriteLine($"✅ Assigned superadmin role to {superAdminEmail}");
-        else
-            Console.WriteLine($"⚠️ Could not assign superadmin role: {string.Join("; ", result.Errors.Select(e => e.Description))}");
-    }
-
-    // Example admin user
-    var adminEmail = "admin@projectapp.local";
-    var adminPassword = "AdminPassword123!";
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
-
-    if (adminUser == null)
-    {
-        adminUser = new ApplicationUser
-        {
-            UserName = "admin",
-            Email = adminEmail,
-            EmailConfirmed = true
-        };
-        var result = await userManager.CreateAsync(adminUser, adminPassword);
-        if (result.Succeeded)
-        {
-            await userManager.AddToRoleAsync(adminUser, "admin");
-            Console.WriteLine($"✅ Created admin user: {adminEmail}");
-        }
-        else
-        {
-            Console.WriteLine($"⚠️ Could not create admin user: {string.Join("; ", result.Errors.Select(e => e.Description))}");
-        }
-    }
-
-    // Sync Employees table
-    foreach (var applicationUser in userManager.Users.ToList())
-    {
-        if (!context.Employees.Any(e => e.UserId == applicationUser.Id))
-        {
-            var rolesForUser = await userManager.GetRolesAsync(applicationUser);
-            context.Employees.Add(new Employee
-            {
-                Name = applicationUser.UserName ?? applicationUser.Id,
-                Role = rolesForUser.FirstOrDefault() ?? "User",
-                ContactInfo = applicationUser.Email ?? string.Empty,
-                Department = "General",
-                UserId = applicationUser.Id
-            });
-            Console.WriteLine($"✅ Synced employee record for {applicationUser.Email}");
-        }
-    }
-    await context.SaveChangesAsync();
-
-    // Supabase update for superadmin
-    var supabaseUrl = configuration["SUPABASE_URL"];
-    var serviceRoleKey = configuration["SUPABASE_SERVICE_ROLE_KEY"];
-    var supabaseUserId = configuration["SUPABASE_SUPERADMIN_ID"]; // UUID from JWT "sub"
-
-    if (!string.IsNullOrWhiteSpace(supabaseUrl) &&
-        !string.IsNullOrWhiteSpace(serviceRoleKey) &&
-        !string.IsNullOrWhiteSpace(supabaseUserId))
-    {
-        using var client = new HttpClient();
-        client.DefaultRequestHeaders.Add("apikey", serviceRoleKey);
-        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {serviceRoleKey}");
-
-        var payload = new
-        {
-            app_metadata = new { role = "superadmin" },
-            user_metadata = new { role = "superadmin" }
-        };
-
-        var response = await client.PutAsJsonAsync($"{supabaseUrl}/auth/v1/admin/users/{supabaseUserId}", payload);
-
-        if (response.IsSuccessStatusCode)
-            Console.WriteLine($"✅ Updated {superAdminEmail} to superadmin in Supabase Auth.");
-        else
-            Console.WriteLine($"⚠️ Supabase superadmin update failed: {await response.Content.ReadAsStringAsync()}");
-    }
-}
-
-
-
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
