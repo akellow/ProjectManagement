@@ -310,49 +310,57 @@ static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration co
     {
         if (!await roleManager.RoleExistsAsync(role))
         {
-            await roleManager.CreateAsync(new IdentityRole(role));
-            Console.WriteLine($"✅ Created role: {role}");
+            var result = await roleManager.CreateAsync(new IdentityRole(role));
+            if (result.Succeeded)
+                Console.WriteLine($"✅ Created role: {role}");
+            else
+                Console.WriteLine($"⚠️ Could not create role {role}: {string.Join("; ", result.Errors.Select(e => e.Description))}");
         }
     }
 
-    // Superadmin user
+    // Superadmin user (configurable username)
     var superAdminEmail = configuration["Jwt:SuperAdminEmail"] ?? "darksister647@gmail.com";
     var superAdminPassword = configuration["Jwt:SuperAdminPassword"] ?? "StrongPassword123!";
-    var superAdminUser = await userManager.FindByEmailAsync(superAdminEmail);
+    var superAdminUserName = configuration["Jwt:SuperAdminUsername"] ?? "superadmin"; // 👈 configurable
+
+    var superAdminUser = await userManager.FindByEmailAsync(superAdminEmail)
+                        ?? await userManager.FindByNameAsync(superAdminUserName);
 
     if (superAdminUser == null)
     {
         superAdminUser = new ApplicationUser
         {
-            UserName = "superadmin",
+            UserName = superAdminUserName,
             Email = superAdminEmail,
             EmailConfirmed = true
         };
         var result = await userManager.CreateAsync(superAdminUser, superAdminPassword);
-        if (!result.Succeeded) throw new InvalidOperationException(string.Join("; ", result.Errors.Select(e => e.Description)));
-        Console.WriteLine($"✅ Created superadmin user: {superAdminEmail}");
+        if (result.Succeeded)
+            Console.WriteLine($"✅ Created superadmin user: {superAdminEmail} with username {superAdminUserName}");
+        else
+            Console.WriteLine($"⚠️ Could not create superadmin: {string.Join("; ", result.Errors.Select(e => e.Description))}");
     }
     else
     {
-        Console.WriteLine($"ℹ️ Superadmin user already exists: {superAdminUser.Email}");
-
-        // Ensure email is confirmed
+        Console.WriteLine($"ℹ️ Superadmin already exists: {superAdminUser.Email} (username {superAdminUser.UserName})");
         superAdminUser.EmailConfirmed = true;
         await userManager.UpdateAsync(superAdminUser);
 
-        // Reset password if needed
         if (!await userManager.CheckPasswordAsync(superAdminUser, superAdminPassword))
         {
             await userManager.RemovePasswordAsync(superAdminUser);
             await userManager.AddPasswordAsync(superAdminUser, superAdminPassword);
-            Console.WriteLine($"🔄 Reset password for superadmin user: {superAdminEmail}");
+            Console.WriteLine($"🔄 Reset password for superadmin: {superAdminEmail}");
         }
     }
 
     if (!await userManager.IsInRoleAsync(superAdminUser, "superadmin"))
     {
-        await userManager.AddToRoleAsync(superAdminUser, "superadmin");
-        Console.WriteLine($"✅ Assigned superadmin role to {superAdminEmail}");
+        var result = await userManager.AddToRoleAsync(superAdminUser, "superadmin");
+        if (result.Succeeded)
+            Console.WriteLine($"✅ Assigned superadmin role to {superAdminEmail}");
+        else
+            Console.WriteLine($"⚠️ Could not assign superadmin role: {string.Join("; ", result.Errors.Select(e => e.Description))}");
     }
 
     // Example admin user
@@ -368,9 +376,16 @@ static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration co
             Email = adminEmail,
             EmailConfirmed = true
         };
-        await userManager.CreateAsync(adminUser, adminPassword);
-        await userManager.AddToRoleAsync(adminUser, "admin");
-        Console.WriteLine($"✅ Created admin user: {adminEmail}");
+        var result = await userManager.CreateAsync(adminUser, adminPassword);
+        if (result.Succeeded)
+        {
+            await userManager.AddToRoleAsync(adminUser, "admin");
+            Console.WriteLine($"✅ Created admin user: {adminEmail}");
+        }
+        else
+        {
+            Console.WriteLine($"⚠️ Could not create admin user: {string.Join("; ", result.Errors.Select(e => e.Description))}");
+        }
     }
 
     // Sync Employees table
@@ -414,16 +429,12 @@ static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration co
         var response = await client.PutAsJsonAsync($"{supabaseUrl}/auth/v1/admin/users/{supabaseUserId}", payload);
 
         if (response.IsSuccessStatusCode)
-        {
             Console.WriteLine($"✅ Updated {superAdminEmail} to superadmin in Supabase Auth.");
-        }
         else
-        {
-            var error = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"❌ Supabase superadmin update failed: {error}");
-        }
+            Console.WriteLine($"⚠️ Supabase superadmin update failed: {await response.Content.ReadAsStringAsync()}");
     }
 }
+
 
 
 
