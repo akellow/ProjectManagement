@@ -212,6 +212,11 @@ else
 
 builder.Services.AddAuthorization(options =>
 {
+         options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                  .RequireAuthenticatedUser()
+                  .AddRequirements(new AdminRequirement())
+                  .Build();
+         
     options.AddPolicy("AdminOnly", policy =>
     {
         policy.RequireAuthenticatedUser();
