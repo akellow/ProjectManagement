@@ -304,7 +304,7 @@ static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration co
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Roles to seed
+    // Seed roles
     var roles = new[] { "superadmin", "admin", "user" };
     foreach (var role in roles)
     {
@@ -332,6 +332,22 @@ static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration co
         if (!result.Succeeded) throw new InvalidOperationException(string.Join("; ", result.Errors.Select(e => e.Description)));
         Console.WriteLine($"✅ Created superadmin user: {superAdminEmail}");
     }
+    else
+    {
+        Console.WriteLine($"ℹ️ Superadmin user already exists: {superAdminUser.Email}");
+
+        // Ensure email is confirmed
+        superAdminUser.EmailConfirmed = true;
+        await userManager.UpdateAsync(superAdminUser);
+
+        // Reset password if needed
+        if (!await userManager.CheckPasswordAsync(superAdminUser, superAdminPassword))
+        {
+            await userManager.RemovePasswordAsync(superAdminUser);
+            await userManager.AddPasswordAsync(superAdminUser, superAdminPassword);
+            Console.WriteLine($"🔄 Reset password for superadmin user: {superAdminEmail}");
+        }
+    }
 
     if (!await userManager.IsInRoleAsync(superAdminUser, "superadmin"))
     {
@@ -339,7 +355,7 @@ static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration co
         Console.WriteLine($"✅ Assigned superadmin role to {superAdminEmail}");
     }
 
-    // Admin user (example)
+    // Example admin user
     var adminEmail = "admin@projectapp.local";
     var adminPassword = "AdminPassword123!";
     var adminUser = await userManager.FindByEmailAsync(adminEmail);
@@ -357,7 +373,7 @@ static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration co
         Console.WriteLine($"✅ Created admin user: {adminEmail}");
     }
 
-    // Employees table sync
+    // Sync Employees table
     foreach (var applicationUser in userManager.Users.ToList())
     {
         if (!context.Employees.Any(e => e.UserId == applicationUser.Id))
@@ -408,6 +424,7 @@ static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration co
         }
     }
 }
+
 
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
