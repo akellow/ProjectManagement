@@ -121,24 +121,27 @@ var authentication = builder.Services.AddAuthentication(options =>
         )
     };
 
-    options.Events = new JwtBearerEvents
+  options.Events = new JwtBearerEvents
+{
+    OnTokenValidated = context =>
     {
-        OnAuthenticationFailed = context =>
+        var metadata = context.Principal?.FindFirst("app_metadata")?.Value;
+        if (!string.IsNullOrWhiteSpace(metadata))
         {
-            if (builder.Environment.IsDevelopment())
+            using var document = JsonDocument.Parse(metadata);
+            if (document.RootElement.TryGetProperty("role", out var roleClaim)
+                && roleClaim.ValueKind == JsonValueKind.String)
             {
-                Console.WriteLine($"Local JWT validation failed: {context.Exception.GetType().Name}: {context.Exception.Message}");
+                var role = roleClaim.GetString();
+                var identity = (ClaimsIdentity)context.Principal!.Identity!;
+                identity.AddClaim(new Claim("trusted_admin_role", role));
+                identity.AddClaim(new Claim(ClaimTypes.Role, role)); // ✅ ensures [Authorize(Roles="superadmin")] works
             }
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = context =>
-        {
-            var role = context.Principal?.FindFirst("role")?.Value
-                ?? context.Principal?.FindFirst(ClaimTypes.Role)?.Value;
-            AddTrustedAdminRole(context.Principal, role);
-            return Task.CompletedTask;
         }
-    };
+        return Task.CompletedTask;
+    }
+};
+
 });
 
 if (supabaseIssuer is not null)
