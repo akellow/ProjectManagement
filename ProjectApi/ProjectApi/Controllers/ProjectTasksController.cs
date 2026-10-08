@@ -23,7 +23,7 @@ public class ProjectTasksController : ControllerBase {
         }
         return task;
     }
-    [HttpPost] [Authorize(Roles = "admin")] public async Task<ActionResult<ProjectTask>> CreateTask(ProjectTask task)
+    [HttpPost] public async Task<ActionResult<ProjectTask>> CreateTask(ProjectTask task)
     {
         if (task == null)
         {
@@ -36,7 +36,7 @@ public class ProjectTasksController : ControllerBase {
 
         return CreatedAtAction(nameof(GetById), new { id = task.ProjectTaskId }, task);
     }
-    [HttpPut("{id}")] [Authorize(Roles = "admin")] public async Task<IActionResult> PutProjectTask(int id, ProjectTaskUpdateDto dto)
+    [HttpPut("{id}")] public async Task<IActionResult> PutProjectTask(int id, ProjectTaskUpdateDto dto)
     {
         var task = await _context.ProjectTasks.FindAsync(id);
         if (task == null) return NotFound();
@@ -52,7 +52,7 @@ public class ProjectTasksController : ControllerBase {
         return NoContent();
     } 
 
-    [HttpDelete("{id}")] [Authorize(Roles = "admin")] public async Task<IActionResult> DeleteTask(int id) { var task = await _context.ProjectTasks.FindAsync(id); if (task is null) return NotFound(); _context.ProjectTasks.Remove(task); await _context.SaveChangesAsync(); return Ok(task); }
+    [HttpDelete("{id}")] public async Task<IActionResult> DeleteTask(int id) { var task = await _context.ProjectTasks.FindAsync(id); if (task is null) return NotFound(); _context.ProjectTasks.Remove(task); await _context.SaveChangesAsync(); return Ok(task); }
 
     private static DateTime NormalizeUtc(DateTime value) => value.Kind switch
     {

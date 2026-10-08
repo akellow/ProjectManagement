@@ -27,7 +27,6 @@ public class MilestonesController : ControllerBase {
 
     // POST: api/milestones
     [HttpPost]
-    [Authorize(Roles = "admin")]
     public async Task<ActionResult<Milestone>> CreateMilestone(Milestone milestone) {
         _context.Milestones.Add(milestone);
         await _context.SaveChangesAsync();
@@ -36,7 +35,6 @@ public class MilestonesController : ControllerBase {
 
     // PUT: api/milestones/{id}
     [HttpPut("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateMilestone(int id, Milestone milestone) {
         if (id != milestone.MilestoneId) return BadRequest();
         _context.Entry(milestone).State = EntityState.Modified;
@@ -46,7 +44,6 @@ public class MilestonesController : ControllerBase {
 
     // DELETE: api/milestones/{id}
     [HttpDelete("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteMilestone(int id) {
         var milestone = await _context.Milestones.FindAsync(id);
         if (milestone is null) return NotFound();

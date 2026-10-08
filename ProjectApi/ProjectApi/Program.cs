@@ -131,16 +131,14 @@ var authentication = builder.Services.AddAuthentication(options =>
                 if (document.RootElement.TryGetProperty("role", out var roleClaim)
                     && roleClaim.ValueKind == JsonValueKind.String)
                 {
-                    var role = roleClaim.GetString();
-                    if (role is not null)
-                    {
-                        var identity = (ClaimsIdentity)context.Principal!.Identity!;
-                        identity.AddClaim(new Claim("trusted_admin_role", role));
-                        identity.AddClaim(new Claim(ClaimTypes.Role, role));
-                        Console.WriteLine($"✅ Injected app_metadata role: {role}");
-                    }
+                    AddTrustedAdminRole(context.Principal, roleClaim.GetString());
                 }
             }
+
+            AddTrustedAdminRole(
+                context.Principal,
+                context.Principal?.FindFirst(ClaimTypes.Role)?.Value);
+
             return Task.CompletedTask;
         }
     };
@@ -185,18 +183,6 @@ if (supabaseIssuer is not null)
                     {
                         AddTrustedAdminRole(context.Principal, roleClaim.GetString());
                         Console.WriteLine($"✅ Injected app_metadata role: {roleClaim.GetString()}");
-                    }
-                }
-
-                var userMetadata = context.Principal?.FindFirst("user_metadata")?.Value;
-                if (!string.IsNullOrWhiteSpace(userMetadata))
-                {
-                    using var document = JsonDocument.Parse(userMetadata);
-                    if (document.RootElement.TryGetProperty("role", out var roleClaim)
-                        && roleClaim.ValueKind == JsonValueKind.String)
-                    {
-                        AddTrustedAdminRole(context.Principal, roleClaim.GetString());
-                        Console.WriteLine($"✅ Injected user_metadata role: {roleClaim.GetString()}");
                     }
                 }
 
@@ -280,7 +266,10 @@ static void AddTrustedAdminRole(ClaimsPrincipal? principal, string? role)
         return;
     }
 
-    identity.AddClaim(new Claim("trusted_admin_role", role));
+    if (!identity.HasClaim("trusted_admin_role", role))
+    {
+        identity.AddClaim(new Claim("trusted_admin_role", role));
+    }
     if (!identity.HasClaim(ClaimTypes.Role, role))
     {
         identity.AddClaim(new Claim(ClaimTypes.Role, role));

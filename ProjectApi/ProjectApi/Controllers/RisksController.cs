@@ -27,7 +27,6 @@ public class RisksController : ControllerBase {
 
     // POST: api/risks
     [HttpPost]
-    [Authorize(Roles = "admin")]
     public async Task<ActionResult<Risk>> CreateRisk(Risk risk) {
         _context.Risks.Add(risk);
         await _context.SaveChangesAsync();
@@ -36,7 +35,6 @@ public class RisksController : ControllerBase {
 
     // PUT: api/risks/{id}
     [HttpPut("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateRisk(int id, Risk risk) {
         if (id != risk.RiskId) return BadRequest();
         _context.Entry(risk).State = EntityState.Modified;
@@ -46,7 +44,6 @@ public class RisksController : ControllerBase {
 
     // DELETE: api/risks/{id}
     [HttpDelete("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteRisk(int id) {
         var risk = await _context.Risks.FindAsync(id);
         if (risk is null) return NotFound();

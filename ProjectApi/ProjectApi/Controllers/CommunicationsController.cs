@@ -27,7 +27,6 @@ public class CommunicationsController : ControllerBase {
 
     // POST: api/communications
     [HttpPost]
-    [Authorize(Roles = "admin")]
     public async Task<ActionResult<Communication>> CreateCommunication(Communication communication) {
         var employee = await _context.Employees.FindAsync(communication.EmployeeId);
         if (employee is null) return BadRequest("A valid employee recipient is required.");
@@ -53,7 +52,6 @@ public class CommunicationsController : ControllerBase {
 
     // PUT: api/communications/{id}
     [HttpPut("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateCommunication(int id, Communication communication) {
         if (id != communication.CommunicationId) return BadRequest();
         _context.Entry(communication).State = EntityState.Modified;
@@ -63,7 +61,6 @@ public class CommunicationsController : ControllerBase {
 
     // DELETE: api/communications/{id}
     [HttpDelete("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteCommunication(int id) {
         var communication = await _context.Communications.FindAsync(id);
         if (communication is null) return NotFound();

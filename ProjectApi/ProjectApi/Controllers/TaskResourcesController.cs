@@ -27,7 +27,6 @@ public class TaskResourcesController : ControllerBase {
 
     // POST: api/taskresources
     [HttpPost]
-    [Authorize(Roles = "admin")]
     public async Task<ActionResult<TaskResource>> CreateTaskResource(TaskResource taskResource) {
         _context.TaskResources.Add(taskResource);
         await _context.SaveChangesAsync();
@@ -36,7 +35,6 @@ public class TaskResourcesController : ControllerBase {
 
     // PUT: api/taskresources/{id}
     [HttpPut("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateTaskResource(int id, TaskResource taskResource) {
         if (id != taskResource.TaskResourceId) return BadRequest();
         _context.Entry(taskResource).State = EntityState.Modified;
@@ -46,7 +44,6 @@ public class TaskResourcesController : ControllerBase {
 
     // DELETE: api/taskresources/{id}
     [HttpDelete("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteTaskResource(int id) {
         var taskResource = await _context.TaskResources.FindAsync(id);
         if (taskResource is null) return NotFound();

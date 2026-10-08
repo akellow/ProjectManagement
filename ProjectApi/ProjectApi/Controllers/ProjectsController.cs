@@ -24,7 +24,6 @@ public class ProjectsController : ControllerBase {
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin")]
     public async Task<ActionResult<Project>> CreateProject(Project project) {
         _context.Projects.Add(project);
         await _context.SaveChangesAsync();
@@ -32,7 +31,6 @@ public class ProjectsController : ControllerBase {
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateProject(int id, Project project) {
         if (id != project.ProjectId) return BadRequest();
         _context.Entry(project).State = EntityState.Modified;
@@ -41,7 +39,6 @@ public class ProjectsController : ControllerBase {
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteProject(int id) {
         var project = await _context.Projects.FindAsync(id);
         if (project is null) return NotFound();

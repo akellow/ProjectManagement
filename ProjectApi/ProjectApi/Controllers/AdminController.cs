@@ -46,7 +46,7 @@ public class AdminController : ControllerBase
     {
         if (!HasTrustedAdminRole()) return Forbid();
         if (!IsAllowedRole(dto.Role)) return BadRequest("Role must be user, admin, or superadmin.");
-        if (dto.Role.Equals("superadmin", StringComparison.OrdinalIgnoreCase) && !User.IsInRole("superadmin"))
+        if (dto.Role.Equals("superadmin", StringComparison.OrdinalIgnoreCase) && !HasTrustedSuperAdminRole())
             return Forbid();
         await EnsureRoleExists(dto.Role);
         var user = new ApplicationUser { UserName = dto.Username.Trim(), Email = dto.Email.Trim(), EmailConfirmed = !dto.Username.Equals("superadmin", StringComparison.OrdinalIgnoreCase) };
@@ -57,7 +57,7 @@ public class AdminController : ControllerBase
         _context.Employees.Add(new Employee { Name = user.UserName ?? dto.Username, Role = dto.Role, ContactInfo = user.Email ?? dto.Email, UserId = user.Id });
         await _context.SaveChangesAsync();
         _organizationAdminService.AddAudit(User.Identity?.Name ?? "admin", "user.created", user.UserName ?? dto.Username);
-        if (User.IsInRole("superadmin") && dto.Username.Equals("superadmin", StringComparison.OrdinalIgnoreCase)) await _emailOtpService.SendAsync(user);
+        if (HasTrustedSuperAdminRole() && dto.Username.Equals("superadmin", StringComparison.OrdinalIgnoreCase)) await _emailOtpService.SendAsync(user);
         return Ok(new { user.Id, user.UserName, user.Email, Role = dto.Role.ToLowerInvariant() });
     }
 
@@ -66,7 +66,7 @@ public class AdminController : ControllerBase
     {
         if (!HasTrustedAdminRole()) return Forbid();
         if (!IsAllowedRole(dto.Role)) return BadRequest("Role must be user, admin, or superadmin.");
-        if (dto.Role.Equals("superadmin", StringComparison.OrdinalIgnoreCase) && !User.IsInRole("superadmin")) return Forbid();
+        if (dto.Role.Equals("superadmin", StringComparison.OrdinalIgnoreCase) && !HasTrustedSuperAdminRole()) return Forbid();
         await EnsureRoleExists(dto.Role);
         var user = await _userManager.FindByIdAsync(id);
         if (user is null) return NotFound();
@@ -74,11 +74,17 @@ public class AdminController : ControllerBase
         if (currentUser?.Id == user.Id && !string.Equals(dto.Role, "superadmin", StringComparison.OrdinalIgnoreCase))
             return BadRequest("You cannot remove your own superadmin access.");
         var currentRoles = await _userManager.GetRolesAsync(user);
-        if (currentRoles.Contains("superadmin") && !User.IsInRole("superadmin")) return Forbid();
+        if (currentRoles.Contains("superadmin", StringComparer.OrdinalIgnoreCase) && !HasTrustedSuperAdminRole()) return Forbid();
         var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
         if (!removeResult.Succeeded) return BadRequest(removeResult.Errors);
         var addResult = await _userManager.AddToRoleAsync(user, dto.Role.ToLowerInvariant());
         if (!addResult.Succeeded) return BadRequest(addResult.Errors);
+        var employee = await _context.Employees.FirstOrDefaultAsync(item => item.UserId == user.Id);
+        if (employee is not null)
+        {
+            employee.Role = dto.Role.ToLowerInvariant();
+            await _context.SaveChangesAsync();
+        }
         _organizationAdminService.AddAudit(User.Identity?.Name ?? "admin", "user.role.updated", user.UserName ?? id);
         return Ok(new { user.Id, user.UserName, Role = dto.Role.ToLowerInvariant() });
     }
@@ -90,6 +96,8 @@ public class AdminController : ControllerBase
 
         var user = await _userManager.FindByIdAsync(id);
         if (user is null) return NotFound();
+        var roles = await _userManager.GetRolesAsync(user);
+        if (roles.Contains("superadmin", StringComparer.OrdinalIgnoreCase) && !HasTrustedSuperAdminRole()) return Forbid();
         var currentUser = await GetCurrentUser();
         if (currentUser?.Id == user.Id) return BadRequest("You cannot delete your own superadmin account.");
 
@@ -114,7 +122,7 @@ public class AdminController : ControllerBase
     {
         if (!HasTrustedAdminRole()) return Forbid();
         if (!IsAllowedRole(dto.Role)) return BadRequest("Role must be user, admin, or superadmin.");
-        if (dto.Role.Equals("superadmin", StringComparison.OrdinalIgnoreCase) && !User.IsInRole("superadmin")) return Forbid();
+        if (dto.Role.Equals("superadmin", StringComparison.OrdinalIgnoreCase) && !HasTrustedSuperAdminRole()) return Forbid();
 
         try
         {
@@ -177,12 +185,19 @@ public class AdminController : ControllerBase
         return Ok(new { user.UserName, user.Email });
     }
 
-    private Task<ApplicationUser?> GetCurrentUser()
+    private async Task<ApplicationUser?> GetCurrentUser()
     {
+        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (!string.IsNullOrWhiteSpace(subject))
+        {
+            var userById = await _userManager.FindByIdAsync(subject);
+            if (userById is not null) return userById;
+        }
+
         var username = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-            ?? User.Identity?.Name;
-        return username is null ? Task.FromResult<ApplicationUser?>(null) : _userManager.FindByNameAsync(username);
+            ?? User.Identity?.Name
+            ?? subject;
+        return username is null ? null : await _userManager.FindByNameAsync(username);
     }
 
     private bool HasTrustedAdminRole()
@@ -192,6 +207,9 @@ public class AdminController : ControllerBase
             && (role.Equals("admin", StringComparison.OrdinalIgnoreCase)
                 || role.Equals("superadmin", StringComparison.OrdinalIgnoreCase));
     }
+
+    private bool HasTrustedSuperAdminRole() =>
+        string.Equals(User.FindFirstValue("trusted_admin_role"), "superadmin", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsAllowedRole(string role) => role.Equals("user", StringComparison.OrdinalIgnoreCase)
         || role.Equals("admin", StringComparison.OrdinalIgnoreCase)

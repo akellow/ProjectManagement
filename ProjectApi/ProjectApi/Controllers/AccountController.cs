@@ -49,7 +49,7 @@ public class AccountController : ControllerBase
 
         var existing = await _userManager.FindByEmailAsync(email);
         if (existing is not null && existing.Id != user.Id) return BadRequest("That email address is already in use.");
-        if (!User.IsInRole("superadmin"))
+        if (!string.Equals(User.FindFirstValue("trusted_admin_role"), "superadmin", StringComparison.OrdinalIgnoreCase))
         {
             var directResult = await _userManager.SetEmailAsync(user, email);
             if (!directResult.Succeeded) return BadRequest(directResult.Errors);
@@ -83,12 +83,19 @@ public class AccountController : ControllerBase
         return Ok(new { user.UserName, user.Email, user.EmailConfirmed });
     }
 
-    private Task<ApplicationUser?> GetCurrentUser()
+    private async Task<ApplicationUser?> GetCurrentUser()
     {
+        var subject = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (!string.IsNullOrWhiteSpace(subject))
+        {
+            var userById = await _userManager.FindByIdAsync(subject);
+            if (userById is not null) return userById;
+        }
+
         var username = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-            ?? User.Identity?.Name;
-        return username is null ? Task.FromResult<ApplicationUser?>(null) : _userManager.FindByNameAsync(username);
+            ?? User.Identity?.Name
+            ?? subject;
+        return username is null ? null : await _userManager.FindByNameAsync(username);
     }
 }
 

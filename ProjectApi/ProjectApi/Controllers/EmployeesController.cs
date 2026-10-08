@@ -61,8 +61,8 @@ public class EmployeesController : ControllerBase {
         return CreatedAtAction(nameof(GetEmployee), new { id = employee.EmployeeId }, employee);
     }
 
-    [HttpPost] [Authorize(Roles = "admin")] public async Task<ActionResult<Employee>> CreateEmployee(Employee employee) { _context.Employees.Add(employee); await _context.SaveChangesAsync(); return CreatedAtAction(nameof(GetEmployee), new { id = employee.EmployeeId }, employee); }
-    [HttpPut("{id}")] [Authorize(Roles = "admin")] public async Task<IActionResult> UpdateEmployee(int id, Employee employee) { if (id != employee.EmployeeId) return BadRequest(); _context.Entry(employee).State = EntityState.Modified; await _context.SaveChangesAsync(); return NoContent(); }
+    [HttpPost] public async Task<ActionResult<Employee>> CreateEmployee(Employee employee) { _context.Employees.Add(employee); await _context.SaveChangesAsync(); return CreatedAtAction(nameof(GetEmployee), new { id = employee.EmployeeId }, employee); }
+    [HttpPut("{id}")] public async Task<IActionResult> UpdateEmployee(int id, Employee employee) { if (id != employee.EmployeeId) return BadRequest(); _context.Entry(employee).State = EntityState.Modified; await _context.SaveChangesAsync(); return NoContent(); }
     [HttpDelete("{id}")]
     [Authorize(Roles = "admin,superadmin")]
     public async Task<IActionResult> DeleteEmployee(int id)

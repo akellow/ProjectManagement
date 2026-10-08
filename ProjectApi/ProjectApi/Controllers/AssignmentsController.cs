@@ -27,7 +27,6 @@ public class AssignmentsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin")]
     public async Task<ActionResult<Assignment>> CreateAssignment(Assignment assignment)
     {
         _context.Assignments.Add(assignment);
@@ -36,7 +35,6 @@ public class AssignmentsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteAssignment(int id)
     {
         var assignment = await _context.Assignments.FindAsync(id);
