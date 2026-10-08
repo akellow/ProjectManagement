@@ -3,7 +3,7 @@ import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Select, Stack, T
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
-type User = { id: string; userName: string; email: string; roles: string[]; source?: "identity" | "supabase" };
+type User = { id: string; userName: string; email: string; roles: string[]; source: "identity" | "supabase" };
 type Project = { projectId: number };
 type Task = { projectTaskId: number; status: string };
 type Employee = { employeeId: number; name: string; role: string; contactInfo: string; userId: string | null };
@@ -33,22 +33,11 @@ export default function SuperAdmin() {
       api.get<User[]>("/admin/users"), api.get<Project[]>("/Projects"), api.get<Task[]>("/ProjectTasks"), api.get<Employee[]>("/Employees"), api.get<AuditEntry[]>("/admin/audit"), api.get<Invitation[]>("/admin/invitations"),
     ]).then(([userResponse, projectResponse, taskResponse, employeeResponse, auditResponse, invitationResponse]) => {
       setUsers(userResponse.data); setProjects(projectResponse.data); setTasks(taskResponse.data); setEmployees(employeeResponse.data); setAudit(auditResponse.data); setInvitations(invitationResponse.data);
-    }).catch(() => setError("Unable to load superadmin data. Check that this account has superadmin access.")).finally(() => setIsLoading(false));
+    }).catch((loadError: any) => setError(readApiError(loadError, "Unable to load superadmin data. Check that this account has superadmin access."))).finally(() => setIsLoading(false));
   }, []);
 
   const completedTasks = tasks.filter((task) => task.status.toLowerCase() === "completed").length;
-  const identityUsers = users.map((registeredUser) => ({ ...registeredUser, source: "identity" as const }));
-  const identityUserIds = new Set(users.map((registeredUser) => registeredUser.id));
-  const supabaseUsers = employees
-    .filter((employee) => employee.userId && !identityUserIds.has(employee.userId))
-    .map((employee) => ({
-      id: employee.userId!,
-      userName: employee.name,
-      email: employee.contactInfo,
-      roles: [employee.role.toLowerCase()],
-      source: "supabase" as const,
-    }));
-  const registeredUsers = [...identityUsers, ...supabaseUsers];
+  const registeredUsers = users;
 
   async function createUser(event: React.FormEvent) {
     event.preventDefault();
@@ -91,7 +80,7 @@ export default function SuperAdmin() {
             {[["Users", registeredUsers.length], ["Projects", projects.length], ["Tasks", tasks.length], ["Completed tasks", completedTasks]].map(([label, value]) => <Paper key={label} sx={{ p: 2.5 }}><Typography color="text.secondary">{label}</Typography><Typography variant="h4" sx={{ mt: 1 }}>{value}</Typography></Paper>)}
       </Box>
       <Stack direction={{ xs: "column", md: "row" }} sx={{ gap: 2 }}>
-        <Paper sx={{ p: 3, flex: 1 }}><Typography variant="h6" sx={{ mb: 2 }}>Registered users</Typography>{userMessage && <Alert severity="info" sx={{ mb: 2 }}>{userMessage}</Alert>}{registeredUsers.map((registeredUser) => <Stack key={`${registeredUser.source}-${registeredUser.id}`} direction={{ xs: "column", sm: "row" }} sx={{ py: 1, borderBottom: "1px solid", borderColor: "divider", justifyContent: "space-between", gap: 1 }}><Box><Typography>{registeredUser.userName}</Typography><Typography variant="body2" color="text.secondary">{registeredUser.email} · {registeredUser.roles.join(", ") || "user"}{registeredUser.source === "supabase" ? " · Supabase" : ""}</Typography></Box>{registeredUser.source === "identity" && <Stack direction="row" spacing={1}><Select size="small" value={registeredUser.roles[0] || "user"} onChange={(event) => changeRole(registeredUser.id, event.target.value)}><MenuItem value="user">User</MenuItem><MenuItem value="admin">Admin</MenuItem><MenuItem value="superadmin">Superadmin</MenuItem></Select><Button size="small" color="error" onClick={() => deleteUser(registeredUser.id)}>Delete</Button></Stack>}</Stack>)}{!registeredUsers.length && <Typography color="text.secondary">No users found.</Typography>}</Paper>
+        <Paper sx={{ p: 3, flex: 1 }}><Typography variant="h6" sx={{ mb: 2 }}>Registered users</Typography>{userMessage && <Alert severity="info" sx={{ mb: 2 }}>{userMessage}</Alert>}{registeredUsers.map((registeredUser) => <Stack key={`${registeredUser.source}-${registeredUser.id}`} direction={{ xs: "column", sm: "row" }} sx={{ py: 1, borderBottom: "1px solid", borderColor: "divider", justifyContent: "space-between", gap: 1 }}><Box><Typography>{registeredUser.userName}</Typography><Typography variant="body2" color="text.secondary">{registeredUser.email} · {registeredUser.roles.join(", ") || "user"}{registeredUser.source === "supabase" ? " · Supabase" : ""}</Typography></Box><Stack direction="row" spacing={1}><Select size="small" value={registeredUser.roles[0] || "user"} onChange={(event) => changeRole(registeredUser.id, event.target.value)}><MenuItem value="user">User</MenuItem><MenuItem value="admin">Admin</MenuItem><MenuItem value="superadmin">Superadmin</MenuItem></Select><Button size="small" color="error" onClick={() => deleteUser(registeredUser.id)}>Delete</Button></Stack></Stack>)}{!registeredUsers.length && <Typography color="text.secondary">No users found.</Typography>}</Paper>
         <Paper sx={{ p: 3, flex: 1 }}><Typography variant="h6" sx={{ mb: 2 }}>System health</Typography><Typography sx={{ mb: 1 }}>Employees: {employees.length}</Typography><Typography sx={{ mb: 1 }}>Task completion: {tasks.length ? Math.round((completedTasks / tasks.length) * 100) : 0}%</Typography><Typography color="text.secondary">Use the main workspace pages to manage records.</Typography></Paper>
       </Stack>
       <Paper component="form" onSubmit={createUser} sx={{ p: 3, mt: 2, maxWidth: 620 }}>
@@ -115,5 +104,9 @@ export default function SuperAdmin() {
 
 function readApiError(error: any, fallback: string) {
   const data = error.response?.data;
-  return Array.isArray(data) ? data[0]?.description || fallback : typeof data === "string" ? data : data?.title || fallback;
+  return Array.isArray(data)
+    ? data[0]?.description || fallback
+    : typeof data === "string"
+      ? data
+      : data?.detail || data?.title || fallback;
 }

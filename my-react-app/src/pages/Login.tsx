@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import PasswordField from '../components/PasswordField';
 
 export default function Login({ message }: { message?: string }) {
   const { signIn } = useAuth();
@@ -38,10 +39,7 @@ export default function Login({ message }: { message?: string }) {
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
 
-          <label className="field-group">
-            <span>Password</span>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}/>
-          </label>
+          <PasswordField id="current-password" label="Password" value={password} onChange={setPassword} required />
 
           <button type="submit">Sign in</button>
         </form>

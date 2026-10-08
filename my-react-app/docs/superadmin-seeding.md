@@ -36,6 +36,8 @@ dotnet user-secrets set "SUPABASE_AUTH_REDIRECT_URL" "http://localhost:5173/logi
 
 Add the redirect URL to Supabase **Authentication → URL Configuration → Redirect URLs**. For a deployed app, set `SUPABASE_AUTH_REDIRECT_URL` to its login URL. Restart ProjectApi after changing User Secrets. Invitations are sent by Supabase Auth; the API never sends the service-role key to the browser.
 
+The same server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` settings are required for listing, changing roles, and deleting Supabase Auth users. For deployment, add these as environment variables in the ProjectApi host (for example, Render's service environment), then redeploy/restart the API. Do not add the service-role key to Vercel or any `VITE_` variable.
+
 ## Manual shell-based seed
 
 ```bash

@@ -36,8 +36,29 @@ public class AdminController : ControllerBase
         var users = new List<object>();
         foreach (var user in _userManager.Users.ToList())
         {
-            users.Add(new { user.Id, user.UserName, user.Email, Roles = await _userManager.GetRolesAsync(user) });
+            users.Add(new
+            {
+                Id = user.Id,
+                UserName = user.UserName ?? user.Email ?? string.Empty,
+                Email = user.Email ?? string.Empty,
+                Roles = await _userManager.GetRolesAsync(user),
+                Source = "identity"
+            });
         }
+
+        try
+        {
+            users.AddRange(await _organizationAdminService.GetSupabaseUsersAsync());
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Problem(exception.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (HttpRequestException exception)
+        {
+            return Problem(exception.Message, statusCode: (int?)exception.StatusCode ?? StatusCodes.Status502BadGateway);
+        }
+
         return Ok(users);
     }
 
@@ -46,7 +67,7 @@ public class AdminController : ControllerBase
     {
         if (!HasTrustedAdminRole()) return Forbid();
         if (!IsAllowedRole(dto.Role)) return BadRequest("Role must be user, admin, or superadmin.");
-        if (dto.Role.Equals("superadmin", StringComparison.OrdinalIgnoreCase) && !HasTrustedSuperAdminRole())
+        if (IsPrivilegedRole(dto.Role) && !HasTrustedSuperAdminRole())
             return Forbid();
         await EnsureRoleExists(dto.Role);
         var user = new ApplicationUser { UserName = dto.Username.Trim(), Email = dto.Email.Trim(), EmailConfirmed = !dto.Username.Equals("superadmin", StringComparison.OrdinalIgnoreCase) };
@@ -66,15 +87,46 @@ public class AdminController : ControllerBase
     {
         if (!HasTrustedAdminRole()) return Forbid();
         if (!IsAllowedRole(dto.Role)) return BadRequest("Role must be user, admin, or superadmin.");
-        if (dto.Role.Equals("superadmin", StringComparison.OrdinalIgnoreCase) && !HasTrustedSuperAdminRole()) return Forbid();
-        await EnsureRoleExists(dto.Role);
+        if (IsPrivilegedRole(dto.Role) && !HasTrustedSuperAdminRole()) return Forbid();
         var user = await _userManager.FindByIdAsync(id);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            try
+            {
+                await _organizationAdminService.UpdateSupabaseUserRoleAsync(
+                    id,
+                    dto.Role,
+                    User.Identity?.Name ?? "admin",
+                    HasTrustedSuperAdminRole());
+                var supabaseEmployee = await _context.Employees.FirstOrDefaultAsync(item => item.UserId == id);
+                if (supabaseEmployee is not null)
+                {
+                    supabaseEmployee.Role = dto.Role.ToLowerInvariant();
+                    await _context.SaveChangesAsync();
+                }
+
+                return Ok(new { Id = id, Role = dto.Role.ToLowerInvariant(), Source = "supabase" });
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Problem(exception.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (HttpRequestException exception)
+            {
+                return Problem(exception.Message, statusCode: (int?)exception.StatusCode ?? StatusCodes.Status502BadGateway);
+            }
+        }
+
+        await EnsureRoleExists(dto.Role);
         var currentUser = await GetCurrentUser();
         if (currentUser?.Id == user.Id && !string.Equals(dto.Role, "superadmin", StringComparison.OrdinalIgnoreCase))
             return BadRequest("You cannot remove your own superadmin access.");
         var currentRoles = await _userManager.GetRolesAsync(user);
-        if (currentRoles.Contains("superadmin", StringComparer.OrdinalIgnoreCase) && !HasTrustedSuperAdminRole()) return Forbid();
+        if (currentRoles.Any(IsPrivilegedRole) && !HasTrustedSuperAdminRole()) return Forbid();
         var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
         if (!removeResult.Succeeded) return BadRequest(removeResult.Errors);
         var addResult = await _userManager.AddToRoleAsync(user, dto.Role.ToLowerInvariant());
@@ -95,9 +147,42 @@ public class AdminController : ControllerBase
         if (!HasTrustedAdminRole()) return Forbid();
 
         var user = await _userManager.FindByIdAsync(id);
-        if (user is null) return NotFound();
+        if (user is null)
+        {
+            if (string.Equals(User.FindFirstValue(JwtRegisteredClaimNames.Sub), id, StringComparison.Ordinal))
+                return BadRequest("You cannot delete your own account.");
+
+            try
+            {
+                await _organizationAdminService.DeleteSupabaseUserAsync(
+                    id,
+                    User.Identity?.Name ?? "admin",
+                    HasTrustedSuperAdminRole());
+                var supabaseEmployee = await _context.Employees.FirstOrDefaultAsync(item => item.UserId == id);
+                if (supabaseEmployee is not null)
+                {
+                    _context.Employees.Remove(supabaseEmployee);
+                    await _context.SaveChangesAsync();
+                }
+
+                return NoContent();
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Problem(exception.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (HttpRequestException exception)
+            {
+                return Problem(exception.Message, statusCode: (int?)exception.StatusCode ?? StatusCodes.Status502BadGateway);
+            }
+        }
+
         var roles = await _userManager.GetRolesAsync(user);
-        if (roles.Contains("superadmin", StringComparer.OrdinalIgnoreCase) && !HasTrustedSuperAdminRole()) return Forbid();
+        if (roles.Any(IsPrivilegedRole) && !HasTrustedSuperAdminRole()) return Forbid();
         var currentUser = await GetCurrentUser();
         if (currentUser?.Id == user.Id) return BadRequest("You cannot delete your own superadmin account.");
 
@@ -122,7 +207,7 @@ public class AdminController : ControllerBase
     {
         if (!HasTrustedAdminRole()) return Forbid();
         if (!IsAllowedRole(dto.Role)) return BadRequest("Role must be user, admin, or superadmin.");
-        if (dto.Role.Equals("superadmin", StringComparison.OrdinalIgnoreCase) && !HasTrustedSuperAdminRole()) return Forbid();
+        if (IsPrivilegedRole(dto.Role) && !HasTrustedSuperAdminRole()) return Forbid();
 
         try
         {
@@ -213,6 +298,10 @@ public class AdminController : ControllerBase
 
     private static bool IsAllowedRole(string role) => role.Equals("user", StringComparison.OrdinalIgnoreCase)
         || role.Equals("admin", StringComparison.OrdinalIgnoreCase)
+        || role.Equals("superadmin", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsPrivilegedRole(string role) =>
+        role.Equals("admin", StringComparison.OrdinalIgnoreCase)
         || role.Equals("superadmin", StringComparison.OrdinalIgnoreCase);
 
     private async Task EnsureRoleExists(string role)

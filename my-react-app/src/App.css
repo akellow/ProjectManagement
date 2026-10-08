@@ -254,7 +254,8 @@
   text-align: left;
 }
 
-.field-group span {
+.field-group span,
+.field-group > label {
   color: var(--text-h);
   font-size: 0.82rem;
   font-weight: 700;
@@ -281,7 +282,52 @@
   box-shadow: 0 0 0 4px var(--accent-bg);
 }
 
-.form-stack button,
+.password-input-wrapper {
+  position: relative;
+}
+
+.field-group input.password-input {
+  padding-right: 52px;
+}
+
+.password-visibility-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 7px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.password-visibility-toggle:hover {
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
+.password-visibility-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.password-visibility-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.form-stack > button,
 .form-stack .MuiButton-root {
   min-height: 48px;
   margin-top: 4px;
@@ -296,13 +342,13 @@
   text-transform: none;
 }
 
-.form-stack button:hover,
+.form-stack > button:hover,
 .form-stack .MuiButton-root:hover {
   background: var(--button-hover);
   transform: translateY(-1px);
 }
 
-.form-stack button:active,
+.form-stack > button:active,
 .form-stack .MuiButton-root:active {
   transform: translateY(0);
 }

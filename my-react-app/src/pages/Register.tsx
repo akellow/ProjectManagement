@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import PasswordField from '../components/PasswordField';
 
 export default function Register() {
   const { signUp } = useAuth();
@@ -59,15 +60,9 @@ export default function Register() {
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </label>
 
-            <label className="field-group">
-              <span>Password</span>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            </label>
+            <PasswordField id="new-password" label="Password" value={password} onChange={setPassword} required />
 
-            <label className="field-group">
-              <span>Confirm password</span>
-              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-            </label>
+            <PasswordField id="confirm-password" label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} required />
 
             <button type="submit">Sign up</button>
           </form>
@@ -80,4 +75,3 @@ export default function Register() {
     </div>
   );
 }
-
