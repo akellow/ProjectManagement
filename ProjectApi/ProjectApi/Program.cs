@@ -230,7 +230,7 @@ using (var migrationScope = app.Services.CreateScope())
     var database = migrationScope.ServiceProvider.GetRequiredService<AppDbContext>();
     await database.Database.MigrateAsync();
 }
-await SeedSuperAdminAsync(app.Services, app.Configuration);
+await SeedIdentityAsync(app.Services, app.Configuration);  
 app.UseCors("AllowFrontend");
 
 // Configure the HTTP request pipeline.
@@ -294,126 +294,118 @@ static void AddTrustedAdminRole(ClaimsPrincipal? principal, string? role)
     }
 }
 
-static async Task SeedSuperAdminAsync(IServiceProvider services, IConfiguration configuration)
+static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration configuration)
 {
     using var scope = services.CreateScope();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var username = configuration["Jwt:SuperAdminUsername"] ?? "superadmin";
-    var password = configuration["Jwt:SuperAdminPassword"];
-    var email = configuration["Jwt:SuperAdminEmail"] ?? "superadmin@projectapp.local";
-    const string roleName = "superadmin";
 
-    if (string.IsNullOrWhiteSpace(password))
+    // Roles to seed
+    var roles = new[] { "superadmin", "admin", "user" };
+    foreach (var role in roles)
     {
-        Console.WriteLine("Super admin seeding skipped because Jwt:SuperAdminPassword is not configured.");
-        return;
-    }
-
-    Console.WriteLine($"Starting superadmin seed: username={username}, email={email}, role={roleName}");
-
-    if (!await roleManager.RoleExistsAsync(roleName))
-    {
-        var result = await roleManager.CreateAsync(new IdentityRole(roleName));
-        if (!result.Succeeded) throw new InvalidOperationException(string.Join("; ", result.Errors.Select(error => error.Description)));
-        Console.WriteLine($"Created role: {roleName}");
-    }
-
-    var user = await userManager.FindByNameAsync(username);
-    if (user is null)
-    {
-        user = new ApplicationUser { UserName = username, Email = email, EmailConfirmed = true };
-        var result = await userManager.CreateAsync(user, password);
-        if (!result.Succeeded) throw new InvalidOperationException(string.Join("; ", result.Errors.Select(error => error.Description)));
-        Console.WriteLine($"Created superadmin user: {username}");
-    }
-    else
-    {
-        Console.WriteLine($"Superadmin user already exists: {user.UserName}");
-        if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
+        if (!await roleManager.RoleExistsAsync(role))
         {
-            user.Email = email;
-            await userManager.UpdateAsync(user);
-        }
-
-        user.EmailConfirmed = true;
-        await userManager.UpdateAsync(user);
-
-        if (!await userManager.CheckPasswordAsync(user, password))
-        {
-            var removePasswordResult = await userManager.RemovePasswordAsync(user);
-            if (!removePasswordResult.Succeeded)
-            {
-                throw new InvalidOperationException(string.Join("; ", removePasswordResult.Errors.Select(error => error.Description)));
-            }
-
-            var addPasswordResult = await userManager.AddPasswordAsync(user, password);
-            if (!addPasswordResult.Succeeded)
-            {
-                throw new InvalidOperationException(string.Join("; ", addPasswordResult.Errors.Select(error => error.Description)));
-            }
-
-            Console.WriteLine($"Reset password for superadmin user: {username}");
+            await roleManager.CreateAsync(new IdentityRole(role));
+            Console.WriteLine($"✅ Created role: {role}");
         }
     }
 
-    if (!await userManager.IsInRoleAsync(user, roleName))
+    // Superadmin user
+    var superAdminEmail = configuration["Jwt:SuperAdminEmail"] ?? "darksister647@gmail.com";
+    var superAdminPassword = configuration["Jwt:SuperAdminPassword"] ?? "StrongPassword123!";
+    var superAdminUser = await userManager.FindByEmailAsync(superAdminEmail);
+
+    if (superAdminUser == null)
     {
-        var result = await userManager.AddToRoleAsync(user, roleName);
-        if (!result.Succeeded) throw new InvalidOperationException(string.Join("; ", result.Errors.Select(error => error.Description)));
-        Console.WriteLine($"Assigned role {roleName} to {user.UserName}");
+        superAdminUser = new ApplicationUser
+        {
+            UserName = "superadmin",
+            Email = superAdminEmail,
+            EmailConfirmed = true
+        };
+        var result = await userManager.CreateAsync(superAdminUser, superAdminPassword);
+        if (!result.Succeeded) throw new InvalidOperationException(string.Join("; ", result.Errors.Select(e => e.Description)));
+        Console.WriteLine($"✅ Created superadmin user: {superAdminEmail}");
     }
 
+    if (!await userManager.IsInRoleAsync(superAdminUser, "superadmin"))
+    {
+        await userManager.AddToRoleAsync(superAdminUser, "superadmin");
+        Console.WriteLine($"✅ Assigned superadmin role to {superAdminEmail}");
+    }
+
+    // Admin user (example)
+    var adminEmail = "admin@projectapp.local";
+    var adminPassword = "AdminPassword123!";
+    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+
+    if (adminUser == null)
+    {
+        adminUser = new ApplicationUser
+        {
+            UserName = "admin",
+            Email = adminEmail,
+            EmailConfirmed = true
+        };
+        await userManager.CreateAsync(adminUser, adminPassword);
+        await userManager.AddToRoleAsync(adminUser, "admin");
+        Console.WriteLine($"✅ Created admin user: {adminEmail}");
+    }
+
+    // Employees table sync
     foreach (var applicationUser in userManager.Users.ToList())
     {
-        if (!context.Employees.Any(employee => employee.UserId == applicationUser.Id))
+        if (!context.Employees.Any(e => e.UserId == applicationUser.Id))
         {
-            var roles = await userManager.GetRolesAsync(applicationUser);
-            context.Employees.Add(new Employee 
-            { 
-                Name = applicationUser.UserName ?? applicationUser.Id, 
-                Role = roles.FirstOrDefault() ?? "User", 
+            var rolesForUser = await userManager.GetRolesAsync(applicationUser);
+            context.Employees.Add(new Employee
+            {
+                Name = applicationUser.UserName ?? applicationUser.Id,
+                Role = rolesForUser.FirstOrDefault() ?? "User",
                 ContactInfo = applicationUser.Email ?? string.Empty,
                 Department = "General",
-                UserId = applicationUser.Id 
+                UserId = applicationUser.Id
             });
+            Console.WriteLine($"✅ Synced employee record for {applicationUser.Email}");
         }
     }
     await context.SaveChangesAsync();
 
-   var supabaseUrl = configuration["SUPABASE_URL"];
-   var serviceRoleKey = configuration["SUPABASE_SERVICE_ROLE_KEY"];
-   var supabaseUserId = configuration["SUPABASE_SUPERADMIN_ID"];
+    // Supabase update for superadmin
+    var supabaseUrl = configuration["SUPABASE_URL"];
+    var serviceRoleKey = configuration["SUPABASE_SERVICE_ROLE_KEY"];
+    var supabaseUserId = configuration["SUPABASE_SUPERADMIN_ID"]; // UUID from JWT "sub"
 
-    
-
-if (!string.IsNullOrWhiteSpace(supabaseUrl) && !string.IsNullOrWhiteSpace(serviceRoleKey) && !string.IsNullOrWhiteSpace(supabaseUserId))
-{
-    using var client = new HttpClient();
-    client.DefaultRequestHeaders.Add("apikey", serviceRoleKey);
-    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {serviceRoleKey}");
-
-    var payload = new
+    if (!string.IsNullOrWhiteSpace(supabaseUrl) &&
+        !string.IsNullOrWhiteSpace(serviceRoleKey) &&
+        !string.IsNullOrWhiteSpace(supabaseUserId))
     {
-        app_metadata = new { role = "superadmin" },
-        user_metadata = new { role = "superadmin" }
-    };
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("apikey", serviceRoleKey);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {serviceRoleKey}");
 
-    // Update by email
-    var response = await client.PutAsJsonAsync($"{supabaseUrl}/auth/v1/admin/users?email=darksister647@gmail.com", payload);
+        var payload = new
+        {
+            app_metadata = new { role = "superadmin" },
+            user_metadata = new { role = "superadmin" }
+        };
 
-    if (response.IsSuccessStatusCode)
-    {
-        Console.WriteLine("✅ Updated darksister647@gmail.com to superadmin in Supabase Auth.");
-    }
-    else
-    {
-        var error = await response.Content.ReadAsStringAsync();
-        Console.WriteLine($"❌ Supabase update failed: {error}");
+        var response = await client.PutAsJsonAsync($"{supabaseUrl}/auth/v1/admin/users/{supabaseUserId}", payload);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"✅ Updated {superAdminEmail} to superadmin in Supabase Auth.");
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"❌ Supabase superadmin update failed: {error}");
+        }
     }
 }
-}
+
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
