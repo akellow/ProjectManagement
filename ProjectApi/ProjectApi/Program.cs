@@ -185,6 +185,19 @@ if (supabaseIssuer is not null)
                     }
                 }
 
+               //  CHECK user_Metadata.role
+
+                     var userMetadata = context.Principal?.FindFirst("user_metadata")?.Value;
+                     if (!string.IsNullOrWhiteSpace(userMetadata))
+                     {
+                              using var document = JsonDocument.Parse(userMetadata);
+                              if (document.RootElement.TryGetProperty("role", out var roleClaim)
+                                  && roleClaim.ValueKind == JsonValueKind.String)
+                              {
+                                       AddTrustedAdminRole(context.Principal, roleClaim.GetString());
+                              }
+                     }
+
                 return Task.CompletedTask;
             }
         };
