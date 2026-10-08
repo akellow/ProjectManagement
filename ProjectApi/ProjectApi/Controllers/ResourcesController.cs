@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "AdminOnly")]
 public class ResourcesController : ControllerBase {
     private readonly AppDbContext _context;
     public ResourcesController(AppDbContext context) => _context = context;

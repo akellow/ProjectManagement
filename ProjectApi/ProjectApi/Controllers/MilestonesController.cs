@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "AdminOnly")]
 public class MilestonesController : ControllerBase {
     private readonly AppDbContext _context;
     public MilestonesController(AppDbContext context) => _context = context;

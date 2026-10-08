@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "AdminOnly")]
 public class TaskResourcesController : ControllerBase {
     private readonly AppDbContext _context;
     public TaskResourcesController(AppDbContext context) => _context = context;

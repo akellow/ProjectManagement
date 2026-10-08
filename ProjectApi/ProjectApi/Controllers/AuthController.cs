@@ -12,6 +12,7 @@ using ProjectApi.Data;
 
 [Route("api/[controller]")]
 [ApiController]
+
 public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;

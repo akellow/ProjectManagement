@@ -132,10 +132,13 @@ var authentication = builder.Services.AddAuthentication(options =>
                     && roleClaim.ValueKind == JsonValueKind.String)
                 {
                     var role = roleClaim.GetString();
-                    var identity = (ClaimsIdentity)context.Principal!.Identity!;
-                    identity.AddClaim(new Claim("trusted_admin_role", role));
-                    identity.AddClaim(new Claim(ClaimTypes.Role, role));
-                    Console.WriteLine($"✅ Injected app_metadata role: {role}");
+                    if (role is not null)
+                    {
+                        var identity = (ClaimsIdentity)context.Principal!.Identity!;
+                        identity.AddClaim(new Claim("trusted_admin_role", role));
+                        identity.AddClaim(new Claim(ClaimTypes.Role, role));
+                        Console.WriteLine($"✅ Injected app_metadata role: {role}");
+                    }
                 }
             }
             return Task.CompletedTask;
@@ -281,5 +284,93 @@ static void AddTrustedAdminRole(ClaimsPrincipal? principal, string? role)
     if (!identity.HasClaim(ClaimTypes.Role, role))
     {
         identity.AddClaim(new Claim(ClaimTypes.Role, role));
+    }
+}
+
+static async Task SeedIdentityAsync(IServiceProvider services, IConfiguration configuration)
+{
+    using var scope = services.CreateScope();
+    var serviceProvider = scope.ServiceProvider;
+    var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+    var username = configuration["Jwt:SuperAdminUsername"];
+    var email = configuration["Jwt:SuperAdminEmail"];
+    var password = configuration["Jwt:SuperAdminPassword"];
+
+    if ((!string.IsNullOrWhiteSpace(email) || !string.IsNullOrWhiteSpace(password))
+        && (string.IsNullOrWhiteSpace(username)
+            || string.IsNullOrWhiteSpace(email)
+            || string.IsNullOrWhiteSpace(password)))
+    {
+        throw new InvalidOperationException(
+            "Jwt:SuperAdminUsername, Jwt:SuperAdminEmail, and Jwt:SuperAdminPassword must all be configured to seed the superadmin user.");
+    }
+
+    foreach (var role in new[] { "user", "admin", "superadmin" })
+    {
+        if (await roleManager.RoleExistsAsync(role))
+        {
+            continue;
+        }
+
+        var result = await roleManager.CreateAsync(new IdentityRole(role));
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Unable to create the '{role}' role: {string.Join("; ", result.Errors.Select(error => error.Description))}");
+        }
+    }
+
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+    {
+        return;
+    }
+
+    if (string.IsNullOrWhiteSpace(username))
+    {
+        throw new InvalidOperationException(
+            "Jwt:SuperAdminUsername must be configured to seed the superadmin user.");
+    }
+
+    var user = await userManager.FindByNameAsync(username);
+    if (user is null)
+    {
+        user = new ApplicationUser
+        {
+            UserName = username,
+            Email = email,
+            EmailConfirmed = false
+        };
+
+        var createResult = await userManager.CreateAsync(user, password);
+        if (!createResult.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Unable to create the configured superadmin user: {string.Join("; ", createResult.Errors.Select(error => error.Description))}");
+        }
+    }
+
+    if (!await userManager.IsInRoleAsync(user, "superadmin"))
+    {
+        var roleResult = await userManager.AddToRoleAsync(user, "superadmin");
+        if (!roleResult.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Unable to assign the superadmin role: {string.Join("; ", roleResult.Errors.Select(error => error.Description))}");
+        }
+    }
+
+    var dbContext = serviceProvider.GetRequiredService<AppDbContext>();
+    if (!await dbContext.Employees.AnyAsync(employee => employee.UserId == user.Id))
+    {
+        dbContext.Employees.Add(new Employee
+        {
+            Name = user.UserName ?? username,
+            Role = "superadmin",
+            ContactInfo = user.Email ?? email,
+            UserId = user.Id
+        });
+        await dbContext.SaveChangesAsync();
     }
 }
