@@ -8,7 +8,7 @@ using ProjectApi.Services;
 
 [ApiController]
 [Route("api/account")]
-[Authorize]
+[Authorize(Policy = "AdminOnly)]
 public class AccountController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
