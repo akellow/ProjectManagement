@@ -194,7 +194,9 @@ if (supabaseIssuer is not null)
                               if (document.RootElement.TryGetProperty("role", out var roleClaim)
                                   && roleClaim.ValueKind == JsonValueKind.String)
                               {
+                                       var role = roleClaim.GetString();
                                        AddTrustedAdminRole(context.Principal, roleClaim.GetString());
+                                       Console.WriteLine($"Injected user_matadata role: {role});
                               }
                      }
 
