@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
+using System.IO.Compression;
+using Microsoft.AspNetCore.ResponseCompression;
 using ProjectApi.Data;
 using ProjectApi.Models;
 using ProjectApi.GraphQL;
@@ -19,6 +21,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient();
+builder.Services.AddScoped<AiReportService>();
+builder.Services.AddResponseCompression(options =>
+{
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
 builder.Services.AddSingleton<EmailOtpService>();
 builder.Services.AddSingleton<OrganizationAdminService>();
 
@@ -209,6 +221,15 @@ builder.Services.AddAuthorization(options =>
                     || role.Equals("superadmin", StringComparison.OrdinalIgnoreCase));
         });
     });
+    options.AddPolicy("SuperAdminOnly", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireAssertion(context =>
+            string.Equals(
+                context.User.FindFirstValue("trusted_admin_role"),
+                "superadmin",
+                StringComparison.OrdinalIgnoreCase));
+    });
 });
 
 builder.Services
@@ -224,6 +245,8 @@ var app = builder.Build();
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
 app.Urls.Clear();
 app.Urls.Add($"http://*:{port}");
+
+app.UseResponseCompression();
 
 using (var migrationScope = app.Services.CreateScope())
 {

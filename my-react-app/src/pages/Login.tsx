@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import PasswordField from '../components/PasswordField';
 
 export default function Login({ message }: { message?: string }) {
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,6 +17,15 @@ export default function Login({ message }: { message?: string }) {
       await signIn(email, password);
       setError(null);
       navigate('/dashboard', { replace: true });
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError(null);
+    try {
+      await signInWithGoogle();
     } catch (err: any) {
       setError(err.message);
     }
@@ -43,6 +52,11 @@ export default function Login({ message }: { message?: string }) {
 
           <button type="submit">Sign in</button>
         </form>
+
+        <div className="form-stack">
+          <p className="auth-copy">Or sign in with</p>
+          <button type="button" onClick={handleGoogleLogin}>Continue with Google</button>
+        </div>
 
         <p className="auth-switch">
           Need an account? <Link to="/register">Sign up</Link>

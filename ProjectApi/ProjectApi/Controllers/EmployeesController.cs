@@ -10,14 +10,20 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
 public class EmployeesController : ControllerBase {
     private readonly AppDbContext _context;
     public EmployeesController(AppDbContext context) => _context = context;
 
-    [HttpGet] public async Task<IEnumerable<Employee>> GetEmployees() => await _context.Employees.ToListAsync();
-    [HttpGet("{id}")] public async Task<ActionResult<Employee>> GetEmployee(int id) => await _context.Employees.FindAsync(id) ?? (ActionResult<Employee>)NotFound();
+    [HttpGet]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IEnumerable<Employee>> GetEmployees() => await _context.Employees.ToListAsync();
+
+    [HttpGet("{id}")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<Employee>> GetEmployee(int id) => await _context.Employees.FindAsync(id) ?? (ActionResult<Employee>)NotFound();
+
     [HttpPost("sync")]
+    [Authorize]
     public async Task<ActionResult<Employee>> SyncCurrentEmployee()
     {
         var userId = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -61,9 +67,16 @@ public class EmployeesController : ControllerBase {
         return CreatedAtAction(nameof(GetEmployee), new { id = employee.EmployeeId }, employee);
     }
 
-    [HttpPost] public async Task<ActionResult<Employee>> CreateEmployee(Employee employee) { _context.Employees.Add(employee); await _context.SaveChangesAsync(); return CreatedAtAction(nameof(GetEmployee), new { id = employee.EmployeeId }, employee); }
-    [HttpPut("{id}")] public async Task<IActionResult> UpdateEmployee(int id, Employee employee) { if (id != employee.EmployeeId) return BadRequest(); _context.Entry(employee).State = EntityState.Modified; await _context.SaveChangesAsync(); return NoContent(); }
+    [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<Employee>> CreateEmployee(Employee employee) { _context.Employees.Add(employee); await _context.SaveChangesAsync(); return CreatedAtAction(nameof(GetEmployee), new { id = employee.EmployeeId }, employee); }
+
+    [HttpPut("{id}")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> UpdateEmployee(int id, Employee employee) { if (id != employee.EmployeeId) return BadRequest(); _context.Entry(employee).State = EntityState.Modified; await _context.SaveChangesAsync(); return NoContent(); }
+
     [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     [Authorize(Roles = "admin,superadmin")]
     public async Task<IActionResult> DeleteEmployee(int id)
     {

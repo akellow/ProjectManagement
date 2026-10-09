@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import api from '../services/api';
 
@@ -16,6 +16,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  const syncEmployee = useCallback(async () => {
+    try {
+      await api.post('/Employees/sync');
+    } catch {
+      throw new Error('You signed in, but your employee profile could not be created. Please try again.');
+    }
+  }, []);
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Unable to sign in with Google.');
+    }
+  };
 
   const signUp = async (email: string, password: string, fullName: string) => {
     const { data, error } = await supabase.auth.signUp({
@@ -41,11 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(error.message || 'Login failed. Check your credentials and Supabase settings.');
     }
     setUser(data.user);
-    try {
-      await api.post('/Employees/sync');
-    } catch {
-      throw new Error('You signed in, but your employee profile could not be created. Please try again.');
-    }
+    await syncEmployee();
     return data;
   };
 
@@ -55,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthLoading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, isAuthLoading, signUp, signIn, signInWithGoogle, syncEmployee, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -23,9 +23,7 @@ export default function Navbar() {
       <Button color="inherit" component={Link} to="/milestones" onClick={closeMobileNav}>Milestones</Button>
       <Button color="inherit" component={Link} to="/risks" onClick={closeMobileNav}>Risks</Button>
       <Button color="inherit" component={Link} to="/communications" onClick={closeMobileNav}>Communications</Button>
-      <Button color="inherit" component={Link} to="/account" onClick={closeMobileNav}>Account</Button>
       {user.app_metadata?.role === "superadmin" && <Button color="inherit" component={Link} to="/superadmin" onClick={closeMobileNav}>Admin</Button>}
-      <Button color="inherit" onClick={handleLogout}>Logout</Button>
     </>
   ) : (
     <>
@@ -35,9 +33,23 @@ export default function Navbar() {
   );
 
   const navigationContent = (
-    <Box className="navbar-links">
-      {navigation}
-    </Box>
+    <>
+      <Box className="navbar-links">{navigation}</Box>
+      {user && (
+        <Box className="navbar-bottom-links">
+          <Button color="inherit" onClick={handleLogout}>Logout</Button>
+          <Button
+            color="inherit"
+            component={Link}
+            to="/settings"
+            onClick={closeMobileNav}
+            startIcon={<SettingsIcon />}
+          >
+            Settings
+          </Button>
+        </Box>
+      )}
+    </>
   );
 
   return (
@@ -75,5 +87,14 @@ export default function Navbar() {
         {navigationContent}
       </Drawer>
     </>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
+      <path d="m19.4 15 .1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 0 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 0 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 0 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1a1.8 1.8 0 0 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 0 1 3.6 0v.2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 0 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z" />
+    </svg>
   );
 }

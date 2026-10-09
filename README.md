@@ -32,6 +32,12 @@ The local startup script runs the API at `http://localhost:5083`. You can also s
 
 Keep credentials and production secrets out of source control.
 
+### AI reports
+
+The superadmin dashboard can generate portfolio, task/schedule, risk, and resource reports using the OpenAI API. Configure `OpenAI:ApiKey` as a .NET user secret or set the `OpenAI__ApiKey` environment variable on the API host. Optionally set `OpenAI:Model` / `OpenAI__Model`; the default is `gpt-4o-mini`.
+
+Report generation is restricted to superadmins. The API sends project names and aggregated project/task/milestone/risk/resource metrics to OpenAI; it does not send employee contact details. Resource costs in reports are the values recorded on resources, not verified actual spending.
+
 ## Deployment
 
 The frontend can be deployed to Cloudflare Pages from this repository with:

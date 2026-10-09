@@ -504,10 +504,12 @@
 .navbar-links {
   display: flex;
   flex-direction: column;
+  flex: 1;
   gap: 4px;
 }
 
-.navbar-links .MuiButton-root {
+.navbar-links .MuiButton-root,
+.navbar-bottom-links .MuiButton-root {
   justify-content: flex-start;
   min-height: 42px;
   padding: 8px 12px;
@@ -520,7 +522,16 @@
   white-space: normal;
 }
 
-.navbar-links .MuiButton-root:hover {
+.navbar-bottom-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.navbar-links .MuiButton-root:hover,
+.navbar-bottom-links .MuiButton-root:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -672,6 +683,8 @@
   }
 
   .mobile-drawer-paper {
+    display: flex;
+    flex-direction: column;
     width: min(82vw, 300px);
     box-sizing: border-box;
     color: #f4fbf7;
@@ -680,6 +693,10 @@
 
   .mobile-drawer .navbar-brand {
     padding-top: 28px;
+  }
+
+  .mobile-drawer-paper .navbar-links {
+    flex: 1;
   }
 
   .page-content {

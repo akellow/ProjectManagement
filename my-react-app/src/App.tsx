@@ -8,6 +8,7 @@ import { AuthProvider } from './context/AuthContext';
 
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const AuthCallback = lazy(() => import('./pages/AuthCallback'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Projects = lazy(() => import('./pages/Projects'));
 const Tasks = lazy(() => import('./pages/Tasks'));
@@ -16,8 +17,9 @@ const Resources = lazy(() => import('./pages/Resources'));
 const Milestones = lazy(() => import('./pages/Milestones'));
 const Risks = lazy(() => import('./pages/Risks'));
 const Communications = lazy(() => import('./pages/Communications'));
-const Account = lazy(() => import('./pages/Account'));
+const Settings = lazy(() => import('./pages/Settings'));
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
+const SystemLogs = lazy(() => import('./pages/SystemLogs'));
 
 function WorkspaceLayout() {
   return (
@@ -33,6 +35,7 @@ function AppShell() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route element={<WorkspaceLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -43,12 +46,21 @@ function AppShell() {
           <Route path="/milestones" element={<Milestones />} />
           <Route path="/risks" element={<Risks />} />
           <Route path="/communications" element={<Communications />} />
-          <Route path="/account" element={<Account />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/account" element={<Navigate to="/settings" replace />} />
           <Route
             path="/superadmin"
             element={
               <SuperAdminRoute>
                 <SuperAdmin />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="/superadmin/logs"
+            element={
+              <SuperAdminRoute>
+                <SystemLogs />
               </SuperAdminRoute>
             }
           />
@@ -70,4 +82,3 @@ function App() {
 }
 
 export default App;
-

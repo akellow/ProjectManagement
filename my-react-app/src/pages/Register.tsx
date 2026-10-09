@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import PasswordField from '../components/PasswordField';
 
 export default function Register() {
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,6 +29,15 @@ export default function Register() {
     try {
       await signUp(email, password, fullName);
       setConfirmationSent(true);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setError(null);
+    try {
+      await signInWithGoogle();
     } catch (err: any) {
       setError(err.message);
     }
@@ -66,6 +75,13 @@ export default function Register() {
 
             <button type="submit">Sign up</button>
           </form>
+        )}
+
+        {!confirmationSent && (
+          <div className="form-stack">
+            <p className="auth-copy">Or sign up with</p>
+            <button type="button" onClick={handleGoogleSignUp}>Sign up with Google</button>
+          </div>
         )}
 
         <p className="auth-switch">
