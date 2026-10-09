@@ -52,11 +52,22 @@ public sealed class AiReportsController : ControllerBase
                 "AI report generation is unavailable. Check the API's OpenAI configuration and try again.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
+        catch (AiReportProviderException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "AI report provider returned status code {StatusCode} and error code {ProviderErrorCode}.",
+                (int)exception.StatusCode,
+                exception.ProviderErrorCode ?? "unknown");
+            return Problem(
+                exception.Message,
+                statusCode: StatusCodes.Status502BadGateway);
+        }
         catch (HttpRequestException exception)
         {
-            _logger.LogWarning(exception, "AI report provider request failed.");
+            _logger.LogWarning(exception, "AI report provider could not be reached.");
             return Problem(
-                "The AI report provider could not complete the request. Try again later.",
+                "The API server could not reach OpenAI. Check the API server's outbound network access and try again.",
                 statusCode: StatusCodes.Status502BadGateway);
         }
         catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested)

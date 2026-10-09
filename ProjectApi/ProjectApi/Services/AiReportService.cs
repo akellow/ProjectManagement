@@ -195,11 +195,16 @@ public sealed class AiReportService
         using var response = await client.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogWarning("OpenAI report request failed with status code {StatusCode}.", (int)response.StatusCode);
-            throw new HttpRequestException(
-                "The AI report provider could not complete the request.",
-                null,
-                response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            var providerErrorCode = TryGetProviderErrorCode(body);
+            _logger.LogWarning(
+                "OpenAI report request failed with status code {StatusCode} and provider error code {ProviderErrorCode}.",
+                (int)response.StatusCode,
+                providerErrorCode ?? "unknown");
+            throw new AiReportProviderException(
+                response.StatusCode,
+                providerErrorCode,
+                GetProviderFailureMessage(response.StatusCode, providerErrorCode));
         }
 
         using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -216,6 +221,59 @@ public sealed class AiReportService
         }
 
         return content;
+    }
+
+    private static string? TryGetProviderErrorCode(string responseBody)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+            if (document.RootElement.TryGetProperty("error", out var error)
+                && error.ValueKind == JsonValueKind.Object)
+            {
+                if (error.TryGetProperty("code", out var code)
+                    && code.ValueKind == JsonValueKind.String)
+                {
+                    return code.GetString();
+                }
+
+                if (error.TryGetProperty("type", out var type)
+                    && type.ValueKind == JsonValueKind.String)
+                {
+                    return type.GetString();
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    private static string GetProviderFailureMessage(
+        System.Net.HttpStatusCode statusCode,
+        string? providerErrorCode)
+    {
+        if (statusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+        {
+            return "OpenAI rejected the API key. Check that OpenAI:ApiKey is valid and configured on the API server.";
+        }
+
+        if ((int)statusCode == 429)
+        {
+            return string.Equals(providerErrorCode, "insufficient_quota", StringComparison.OrdinalIgnoreCase)
+                ? "The OpenAI API project has insufficient quota. Check its billing and usage limits."
+                : "The OpenAI API rate limit was reached. Check the API project's limits and try again shortly.";
+        }
+
+        if (statusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            return "OpenAI rejected the report request. Check the configured OpenAI model and API settings.";
+        }
+
+        return "OpenAI could not complete the report request. Check the API server logs and try again.";
     }
 
     private sealed record ProjectReportRow(
@@ -235,4 +293,20 @@ public sealed class AiReportService
         int ResourceCount,
         int AvailableResources,
         decimal RecordedResourceCost);
+}
+
+public sealed class AiReportProviderException : Exception
+{
+    public AiReportProviderException(
+        System.Net.HttpStatusCode statusCode,
+        string? providerErrorCode,
+        string message)
+        : base(message)
+    {
+        StatusCode = statusCode;
+        ProviderErrorCode = providerErrorCode;
+    }
+
+    public System.Net.HttpStatusCode StatusCode { get; }
+    public string? ProviderErrorCode { get; }
 }
