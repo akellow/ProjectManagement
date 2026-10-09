@@ -34,9 +34,9 @@ Keep credentials and production secrets out of source control.
 
 ### AI reports
 
-The superadmin dashboard can generate portfolio, task/schedule, risk, and resource reports using the OpenAI API. Configure `OpenAI:ApiKey` as a .NET user secret or set the `OpenAI__ApiKey` environment variable on the API host. Optionally set `OpenAI:Model` / `OpenAI__Model`; the default is `gpt-4o-mini`.
+The superadmin dashboard can generate portfolio, task/schedule, risk, and resource reports using the Gemini API. Configure `Gemini:ApiKey` as a .NET user secret or set the `Gemini__ApiKey` environment variable on the API host. Optionally set `Gemini:Model` / `Gemini__Model`; the default is `gemini-2.5-flash`. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/).
 
-Report generation is restricted to superadmins. The API sends project names and aggregated project/task/milestone/risk/resource metrics to OpenAI; it does not send employee contact details. Resource costs in reports are the values recorded on resources, not verified actual spending.
+Report generation is restricted to superadmins. The API sends project names and aggregated project/task/milestone/risk/resource metrics to Gemini; it does not send employee contact details. Resource costs in reports are the values recorded on resources, not verified actual spending. Review Google's current Gemini API data-use terms and free-tier limits before sending project data; do not include sensitive information unless your organization's terms allow it.
 
 ## Deployment
 

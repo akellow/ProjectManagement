@@ -47,9 +47,9 @@ public sealed class AiReportsController : ControllerBase
         }
         catch (InvalidOperationException exception)
         {
-            _logger.LogError(exception, "AI report generation is unavailable because configuration or provider output is invalid.");
+            _logger.LogError(exception, "Gemini report generation is unavailable because configuration or provider output is invalid.");
             return Problem(
-                "AI report generation is unavailable. Check the API's OpenAI configuration and try again.",
+                "AI report generation is unavailable. Check the API's Gemini configuration and try again.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (AiReportProviderException exception)
@@ -65,9 +65,9 @@ public sealed class AiReportsController : ControllerBase
         }
         catch (HttpRequestException exception)
         {
-            _logger.LogWarning(exception, "AI report provider could not be reached.");
+            _logger.LogWarning(exception, "Gemini could not be reached.");
             return Problem(
-                "The API server could not reach OpenAI. Check the API server's outbound network access and try again.",
+                "The API server could not reach Gemini. Check the API server's outbound network access and try again.",
                 statusCode: StatusCodes.Status502BadGateway);
         }
         catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested)
