@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize]
 public class ProjectsController : ControllerBase {
     private readonly AppDbContext _context;
     public ProjectsController(AppDbContext context) => _context = context;
@@ -24,6 +24,7 @@ public class ProjectsController : ControllerBase {
     }
 
     [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<Project>> CreateProject(Project project) {
         _context.Projects.Add(project);
         await _context.SaveChangesAsync();
@@ -31,6 +32,7 @@ public class ProjectsController : ControllerBase {
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateProject(int id, Project project) {
         if (id != project.ProjectId) return BadRequest();
         _context.Entry(project).State = EntityState.Modified;
@@ -39,6 +41,7 @@ public class ProjectsController : ControllerBase {
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> DeleteProject(int id) {
         var project = await _context.Projects.FindAsync(id);
         if (project is null) return NotFound();

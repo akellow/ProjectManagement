@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize]
 public class ProjectEmployeesController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -19,6 +19,7 @@ public class ProjectEmployeesController : ControllerBase
         await _context.ProjectEmployees.ToListAsync();
 
     [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<ProjectEmployee>> Assign(ProjectEmployee assignment)
     {
         if (!await _context.Projects.AnyAsync(project => project.ProjectId == assignment.ProjectId) ||
@@ -32,6 +33,7 @@ public class ProjectEmployeesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> Remove(int id)
     {
         var assignment = await _context.ProjectEmployees.FindAsync(id);

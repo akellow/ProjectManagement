@@ -25,16 +25,16 @@ export default function EntityPage({ title, endpoint, columns, idKey, fields }: 
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   const loadItems = async () => {
-    const response = await api.get<Record<string, unknown>[]>(endpoint);
+    const needsProjects = fields.some((field) => field.key === "projectId");
+    const needsEmployees = fields.some((field) => field.key === "employeeId");
+    const [response, projectResponse, employeeResponse] = await Promise.all([
+      api.get<Record<string, unknown>[]>(endpoint),
+      needsProjects ? api.get<Project[]>("/Projects") : Promise.resolve(null),
+      needsEmployees ? api.get<Employee[]>("/Employees") : Promise.resolve(null),
+    ]);
     setItems(response.data);
-    if (fields.some((field) => field.key === "projectId")) {
-      const projectResponse = await api.get<Project[]>("/Projects");
-      setProjects(projectResponse.data);
-    }
-    if (fields.some((field) => field.key === "employeeId")) {
-      const employeeResponse = await api.get<Employee[]>("/Employees");
-      setEmployees(employeeResponse.data);
-    }
+    if (projectResponse) setProjects(projectResponse.data);
+    if (employeeResponse) setEmployees(employeeResponse.data);
   };
 
   useEffect(() => {

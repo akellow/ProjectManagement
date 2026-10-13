@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize]
 public class MilestonesController : ControllerBase {
     private readonly AppDbContext _context;
     public MilestonesController(AppDbContext context) => _context = context;
@@ -27,6 +27,7 @@ public class MilestonesController : ControllerBase {
 
     // POST: api/milestones
     [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<Milestone>> CreateMilestone(Milestone milestone) {
         _context.Milestones.Add(milestone);
         await _context.SaveChangesAsync();
@@ -35,6 +36,7 @@ public class MilestonesController : ControllerBase {
 
     // PUT: api/milestones/{id}
     [HttpPut("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateMilestone(int id, Milestone milestone) {
         if (id != milestone.MilestoneId) return BadRequest();
         _context.Entry(milestone).State = EntityState.Modified;
@@ -44,6 +46,7 @@ public class MilestonesController : ControllerBase {
 
     // DELETE: api/milestones/{id}
     [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> DeleteMilestone(int id) {
         var milestone = await _context.Milestones.FindAsync(id);
         if (milestone is null) return NotFound();

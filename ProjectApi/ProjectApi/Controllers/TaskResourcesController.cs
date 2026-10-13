@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize]
 public class TaskResourcesController : ControllerBase {
     private readonly AppDbContext _context;
     public TaskResourcesController(AppDbContext context) => _context = context;
@@ -27,6 +27,7 @@ public class TaskResourcesController : ControllerBase {
 
     // POST: api/taskresources
     [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<TaskResource>> CreateTaskResource(TaskResource taskResource) {
         _context.TaskResources.Add(taskResource);
         await _context.SaveChangesAsync();
@@ -35,6 +36,7 @@ public class TaskResourcesController : ControllerBase {
 
     // PUT: api/taskresources/{id}
     [HttpPut("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateTaskResource(int id, TaskResource taskResource) {
         if (id != taskResource.TaskResourceId) return BadRequest();
         _context.Entry(taskResource).State = EntityState.Modified;
@@ -44,6 +46,7 @@ public class TaskResourcesController : ControllerBase {
 
     // DELETE: api/taskresources/{id}
     [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> DeleteTaskResource(int id) {
         var taskResource = await _context.TaskResources.FindAsync(id);
         if (taskResource is null) return NotFound();

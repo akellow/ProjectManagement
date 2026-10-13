@@ -32,6 +32,10 @@ The local startup script runs the API at `http://localhost:5083`. You can also s
 
 Keep credentials and production secrets out of source control.
 
+### Workspace access
+
+New sign-ups are standard users. Authenticated workspace members can read shared project data and use their own account settings and notifications; project changes, employee administration, and organization administration remain restricted to admins or superadmins.
+
 ### AI reports
 
 The superadmin dashboard can generate portfolio, task/schedule, risk, and resource reports using the Gemini API. Configure `Gemini:ApiKey` as a .NET user secret or set the `Gemini__ApiKey` environment variable on the API host. Optionally set `Gemini:Model` / `Gemini__Model`; the default is `gemini-2.5-flash`. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/).

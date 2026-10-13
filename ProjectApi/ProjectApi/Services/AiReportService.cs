@@ -168,7 +168,15 @@ public sealed class AiReportService
                 : "Summary and project breakdown cover all projects."
         };
 
-        var model = _configuration["Gemini:Model"] ?? "gemini-2.5-flash";
+        var configuredModel = _configuration["Gemini:Model"];
+        var model = string.IsNullOrWhiteSpace(configuredModel)
+            ? "gemini-2.5-flash"
+            : configuredModel.Trim();
+        if (model.StartsWith("models/", StringComparison.OrdinalIgnoreCase))
+        {
+            model = model["models/".Length..];
+        }
+
         var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(model)}:generateContent";
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Add("x-goog-api-key", apiKey);
@@ -209,13 +217,14 @@ public sealed class AiReportService
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             var providerErrorCode = TryGetProviderErrorCode(body);
             _logger.LogWarning(
-                "Gemini report request failed with status code {StatusCode} and provider error code {ProviderErrorCode}.",
+                "Gemini report request for model {Model} failed with status code {StatusCode} and provider error code {ProviderErrorCode}.",
+                model,
                 (int)response.StatusCode,
                 providerErrorCode ?? "unknown");
             throw new AiReportProviderException(
                 response.StatusCode,
                 providerErrorCode,
-                GetProviderFailureMessage(response.StatusCode));
+                GetProviderFailureMessage(response.StatusCode, model));
         }
 
         using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -267,7 +276,8 @@ public sealed class AiReportService
     }
 
     private static string GetProviderFailureMessage(
-        System.Net.HttpStatusCode statusCode)
+        System.Net.HttpStatusCode statusCode,
+        string model)
     {
         if (statusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
         {
@@ -286,7 +296,7 @@ public sealed class AiReportService
 
         if ((int)statusCode == 404)
         {
-            return "The configured Gemini model was not found. Check the Gemini:Model setting.";
+            return $"Gemini could not find model '{model}'. Set Gemini__Model to a supported model ID such as gemini-2.5-flash on the API host, or remove that setting to use the default. Then redeploy or restart the API.";
         }
 
         return "Gemini could not complete the report request. Check the API server logs and try again.";

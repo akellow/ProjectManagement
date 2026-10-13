@@ -94,7 +94,7 @@ export default function SuperAdmin() {
       <Paper component="form" onSubmit={generateReport} sx={{ p: 3, mb: 2 }}>
         <Typography variant="h6">AI-generated reports</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Generate a report from aggregated project metrics. Project names and metrics are sent to OpenAI; employee contact details are not included.
+          Generate a report from aggregated project metrics. Project names and metrics are sent to Gemini; employee contact details are not included.
         </Typography>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { sm: "center" } }}>
           <Select<ReportType>

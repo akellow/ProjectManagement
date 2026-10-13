@@ -3,6 +3,23 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+const routePreloaders: Record<string, () => Promise<unknown>> = {
+  "/dashboard": () => import("../pages/Dashboard"),
+  "/projects": () => import("../pages/Projects"),
+  "/tasks": () => import("../pages/Tasks"),
+  "/employees": () => import("../pages/Employees"),
+  "/resources": () => import("../pages/Resources"),
+  "/milestones": () => import("../pages/Milestones"),
+  "/risks": () => import("../pages/Risks"),
+  "/communications": () => import("../pages/Communications"),
+  "/settings": () => import("../pages/Settings"),
+  "/superadmin": () => import("../pages/SuperAdmin"),
+};
+
+function preloadRoute(path: string) {
+  void routePreloaders[path]?.();
+}
+
 export default function Navbar() {
    const { user, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -15,15 +32,15 @@ export default function Navbar() {
 
   const navigation = user ? (
     <>
-      <Button color="inherit" component={Link} to="/dashboard" onClick={closeMobileNav}>Dashboard</Button>
-      <Button color="inherit" component={Link} to="/projects" onClick={closeMobileNav}>Projects</Button>
-      <Button color="inherit" component={Link} to="/tasks" onClick={closeMobileNav}>Tasks</Button>
-      <Button color="inherit" component={Link} to="/employees" onClick={closeMobileNav}>Employees</Button>
-      <Button color="inherit" component={Link} to="/resources" onClick={closeMobileNav}>Resources</Button>
-      <Button color="inherit" component={Link} to="/milestones" onClick={closeMobileNav}>Milestones</Button>
-      <Button color="inherit" component={Link} to="/risks" onClick={closeMobileNav}>Risks</Button>
-      <Button color="inherit" component={Link} to="/communications" onClick={closeMobileNav}>Communications</Button>
-      {user.app_metadata?.role === "superadmin" && <Button color="inherit" component={Link} to="/superadmin" onClick={closeMobileNav}>Admin</Button>}
+      <Button color="inherit" component={Link} to="/dashboard" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/dashboard")} onFocus={() => preloadRoute("/dashboard")}>Dashboard</Button>
+      <Button color="inherit" component={Link} to="/projects" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/projects")} onFocus={() => preloadRoute("/projects")}>Projects</Button>
+      <Button color="inherit" component={Link} to="/tasks" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/tasks")} onFocus={() => preloadRoute("/tasks")}>Tasks</Button>
+      <Button color="inherit" component={Link} to="/employees" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/employees")} onFocus={() => preloadRoute("/employees")}>Employees</Button>
+      <Button color="inherit" component={Link} to="/resources" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/resources")} onFocus={() => preloadRoute("/resources")}>Resources</Button>
+      <Button color="inherit" component={Link} to="/milestones" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/milestones")} onFocus={() => preloadRoute("/milestones")}>Milestones</Button>
+      <Button color="inherit" component={Link} to="/risks" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/risks")} onFocus={() => preloadRoute("/risks")}>Risks</Button>
+      <Button color="inherit" component={Link} to="/communications" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/communications")} onFocus={() => preloadRoute("/communications")}>Communications</Button>
+      {user.app_metadata?.role === "superadmin" && <Button color="inherit" component={Link} to="/superadmin" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/superadmin")} onFocus={() => preloadRoute("/superadmin")}>Admin</Button>}
     </>
   ) : (
     <>
@@ -43,6 +60,8 @@ export default function Navbar() {
             component={Link}
             to="/settings"
             onClick={closeMobileNav}
+            onMouseEnter={() => preloadRoute("/settings")}
+            onFocus={() => preloadRoute("/settings")}
             startIcon={<SettingsIcon />}
           >
             Settings

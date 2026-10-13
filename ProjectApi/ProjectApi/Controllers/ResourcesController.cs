@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize]
 public class ResourcesController : ControllerBase {
     private readonly AppDbContext _context;
     public ResourcesController(AppDbContext context) => _context = context;
@@ -27,6 +27,7 @@ public class ResourcesController : ControllerBase {
 
     // POST: api/resources
     [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<Resource>> CreateResource(Resource resource) {
         if (!await _context.Projects.AnyAsync(project => project.ProjectId == resource.ProjectId))
             return BadRequest("A valid project is required for every resource.");
@@ -37,6 +38,7 @@ public class ResourcesController : ControllerBase {
 
     // PUT: api/resources/{id}
     [HttpPut("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateResource(int id, Resource resource) {
         if (id != resource.ResourceId) return BadRequest();
         if (!await _context.Projects.AnyAsync(project => project.ProjectId == resource.ProjectId))
@@ -48,6 +50,7 @@ public class ResourcesController : ControllerBase {
 
     // DELETE: api/resources/{id}
     [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> DeleteResource(int id) {
         var resource = await _context.Resources.FindAsync(id);
         if (resource is null) return NotFound();

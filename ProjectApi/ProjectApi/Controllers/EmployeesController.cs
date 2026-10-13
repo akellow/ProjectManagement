@@ -15,11 +15,11 @@ public class EmployeesController : ControllerBase {
     public EmployeesController(AppDbContext context) => _context = context;
 
     [HttpGet]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize]
     public async Task<IEnumerable<Employee>> GetEmployees() => await _context.Employees.ToListAsync();
 
     [HttpGet("{id}")]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize]
     public async Task<ActionResult<Employee>> GetEmployee(int id) => await _context.Employees.FindAsync(id) ?? (ActionResult<Employee>)NotFound();
 
     [HttpPost("sync")]

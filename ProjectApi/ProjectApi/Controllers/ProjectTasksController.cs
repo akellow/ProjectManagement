@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize]
 public class ProjectTasksController : ControllerBase {
     private readonly AppDbContext _context;
     public ProjectTasksController(AppDbContext context) => _context = context;
@@ -23,7 +23,9 @@ public class ProjectTasksController : ControllerBase {
         }
         return task;
     }
-    [HttpPost] public async Task<ActionResult<ProjectTask>> CreateTask(ProjectTask task)
+    [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<ProjectTask>> CreateTask(ProjectTask task)
     {
         if (task == null)
         {
@@ -36,7 +38,9 @@ public class ProjectTasksController : ControllerBase {
 
         return CreatedAtAction(nameof(GetById), new { id = task.ProjectTaskId }, task);
     }
-    [HttpPut("{id}")] public async Task<IActionResult> PutProjectTask(int id, ProjectTaskUpdateDto dto)
+    [HttpPut("{id}")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> PutProjectTask(int id, ProjectTaskUpdateDto dto)
     {
         var task = await _context.ProjectTasks.FindAsync(id);
         if (task == null) return NotFound();
@@ -52,7 +56,9 @@ public class ProjectTasksController : ControllerBase {
         return NoContent();
     } 
 
-    [HttpDelete("{id}")] public async Task<IActionResult> DeleteTask(int id) { var task = await _context.ProjectTasks.FindAsync(id); if (task is null) return NotFound(); _context.ProjectTasks.Remove(task); await _context.SaveChangesAsync(); return Ok(task); }
+    [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> DeleteTask(int id) { var task = await _context.ProjectTasks.FindAsync(id); if (task is null) return NotFound(); _context.ProjectTasks.Remove(task); await _context.SaveChangesAsync(); return Ok(task); }
 
     private static DateTime NormalizeUtc(DateTime value) => value.Kind switch
     {

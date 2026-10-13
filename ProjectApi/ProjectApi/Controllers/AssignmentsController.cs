@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize]
 public class AssignmentsController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -27,6 +27,7 @@ public class AssignmentsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<Assignment>> CreateAssignment(Assignment assignment)
     {
         _context.Assignments.Add(assignment);
@@ -35,6 +36,7 @@ public class AssignmentsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> DeleteAssignment(int id)
     {
         var assignment = await _context.Assignments.FindAsync(id);

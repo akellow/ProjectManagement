@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Identity;
 
 [ApiController]
 [Route("api/notifications")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize]
 public class NotificationsController : ControllerBase
 {
     private readonly AppDbContext _context;

@@ -8,7 +8,7 @@ namespace ProjectApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize]
 public class CommunicationsController : ControllerBase {
     private readonly AppDbContext _context;
     public CommunicationsController(AppDbContext context) => _context = context;
@@ -27,6 +27,7 @@ public class CommunicationsController : ControllerBase {
 
     // POST: api/communications
     [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<Communication>> CreateCommunication(Communication communication) {
         var employee = await _context.Employees.FindAsync(communication.EmployeeId);
         if (employee is null) return BadRequest("A valid employee recipient is required.");
@@ -52,6 +53,7 @@ public class CommunicationsController : ControllerBase {
 
     // PUT: api/communications/{id}
     [HttpPut("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateCommunication(int id, Communication communication) {
         if (id != communication.CommunicationId) return BadRequest();
         _context.Entry(communication).State = EntityState.Modified;
@@ -61,6 +63,7 @@ public class CommunicationsController : ControllerBase {
 
     // DELETE: api/communications/{id}
     [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> DeleteCommunication(int id) {
         var communication = await _context.Communications.FindAsync(id);
         if (communication is null) return NotFound();
