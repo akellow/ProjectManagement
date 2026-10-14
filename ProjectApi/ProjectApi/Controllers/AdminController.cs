@@ -174,6 +174,11 @@ public class AdminController : ControllerBase
 
             try
             {
+                var supabaseUser = (await _organizationAdminService.GetSupabaseUsersAsync())
+                    .FirstOrDefault(item => string.Equals(item.Id, id, StringComparison.Ordinal));
+                if (supabaseUser?.Roles.Contains("superadmin", StringComparer.OrdinalIgnoreCase) == true)
+                    return Conflict("Superadmin accounts cannot be deleted.");
+
                 await _organizationAdminService.DeleteSupabaseUserAsync(
                     id,
                     User.Identity?.Name ?? "admin",
@@ -202,6 +207,8 @@ public class AdminController : ControllerBase
         }
 
         var roles = await _userManager.GetRolesAsync(user);
+        if (roles.Any(role => role.Equals("superadmin", StringComparison.OrdinalIgnoreCase)))
+            return Conflict("Superadmin accounts cannot be deleted.");
         if (roles.Any(IsPrivilegedRole) && !HasTrustedSuperAdminRole()) return Forbid();
         var currentUser = await GetCurrentUser();
         if (currentUser?.Id == user.Id) return BadRequest("You cannot delete your own superadmin account.");

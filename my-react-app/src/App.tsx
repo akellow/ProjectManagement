@@ -21,6 +21,8 @@ const Risks = lazy(() => import('./pages/Risks'));
 const Communications = lazy(() => import('./pages/Communications'));
 const Settings = lazy(() => import('./pages/Settings'));
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
+const SystemUsers = lazy(() => import('./pages/SystemUsers'));
+const InviteUser = lazy(() => import('./pages/InviteUser'));
 const SystemLogs = lazy(() => import('./pages/SystemLogs'));
 
 function WorkspaceLayout() {
@@ -65,6 +67,22 @@ function AppShell() {
             element={
               <SuperAdminRoute>
                 <SystemLogs />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="/superadmin/users"
+            element={
+              <SuperAdminRoute>
+                <SystemUsers />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="/superadmin/invite"
+            element={
+              <SuperAdminRoute>
+                <InviteUser />
               </SuperAdminRoute>
             }
           />

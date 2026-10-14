@@ -14,6 +14,8 @@ const routePreloaders: Record<string, () => Promise<unknown>> = {
   "/communications": () => import("../pages/Communications"),
   "/settings": () => import("../pages/Settings"),
   "/superadmin": () => import("../pages/SuperAdmin"),
+  "/superadmin/users": () => import("../pages/SystemUsers"),
+  "/superadmin/invite": () => import("../pages/InviteUser"),
 };
 
 function preloadRoute(path: string) {

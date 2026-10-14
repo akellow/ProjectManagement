@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
+import { Link, useLocation } from "react-router-dom";
 import api from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import { jsPDF } from "jspdf";
 
 type User = { id: string; userName: string; email: string; roles: string[]; source: "identity" | "supabase" };
 type Project = { projectId: number };
 type Task = { projectTaskId: number; status: string };
-type Invitation = { id: string; email: string; role: string; invitedBy: string; expiresAt: string };
 type ReportType = "portfolio" | "schedule" | "risks" | "resources";
 type AiReport = { reportType: ReportType; report: string };
 
@@ -19,16 +18,12 @@ const reportTypes: { value: ReportType; label: string }[] = [
 ];
 
 export default function SuperAdmin() {
-  const { user } = useAuth();
+  const location = useLocation();
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [userMessage, setUserMessage] = useState("");
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("user");
   const [reportType, setReportType] = useState<ReportType>("portfolio");
   const [aiReport, setAiReport] = useState<AiReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -36,36 +31,15 @@ export default function SuperAdmin() {
 
   useEffect(() => {
     Promise.all([
-      api.get<User[]>("/admin/users"), api.get<Project[]>("/Projects"), api.get<Task[]>("/ProjectTasks"), api.get<Invitation[]>("/admin/invitations"),
-    ]).then(([userResponse, projectResponse, taskResponse, invitationResponse]) => {
-      setUsers(userResponse.data); setProjects(projectResponse.data); setTasks(taskResponse.data); setInvitations(invitationResponse.data);
+      api.get<User[]>("/admin/users"), api.get<Project[]>("/Projects"), api.get<Task[]>("/ProjectTasks"),
+    ]).then(([userResponse, projectResponse, taskResponse]) => {
+      setUsers(userResponse.data); setProjects(projectResponse.data); setTasks(taskResponse.data);
     }).catch((loadError: any) => setError(readApiError(loadError, "Unable to load superadmin data. Check that this account has superadmin access."))).finally(() => setIsLoading(false));
   }, []);
 
   const completedTasks = tasks.filter((task) => task.status.toLowerCase() === "completed").length;
   const registeredUsers = users;
-
-  async function changeRole(userId: string, role: string) {
-    try {
-      await api.put(`/admin/users/${userId}/role`, { role });
-      const response = await api.get<User[]>("/admin/users");
-      setUsers(response.data); setUserMessage("Role updated. The user must sign in again to receive the new permissions.");
-    } catch (error: any) { setUserMessage(readApiError(error, "Unable to update role.")); }
-  }
-
-  async function deleteUser(userId: string) {
-    if (!window.confirm("Delete this user account?")) return;
-    try {
-      await api.delete(`/admin/users/${userId}`);
-      setUsers(users.filter((user) => user.id !== userId));
-      setUserMessage("Account deleted.");
-    } catch (error: any) { setUserMessage(readApiError(error, "Unable to delete account.")); }
-  }
-
-  async function createInvitation(event: React.FormEvent) {
-    event.preventDefault();
-    try { const response = await api.post<Invitation>("/admin/invitations", { email: inviteEmail, role: inviteRole }); setInvitations([response.data, ...invitations]); setInviteEmail(""); setUserMessage("Supabase invitation email sent."); } catch (error: any) { setUserMessage(readApiError(error, "Unable to send invitation.")); }
-  }
+  const inviteMessage = (location.state as { message?: string } | null)?.message;
 
   async function generateReport(event: React.FormEvent) {
     event.preventDefault();
@@ -82,10 +56,47 @@ export default function SuperAdmin() {
     }
   }
 
+  function downloadReportPdf() {
+    if (!aiReport) return;
+    const document = new jsPDF();
+    const title = reportTypes.find((option) => option.value === aiReport.reportType)?.label ?? "Generated report";
+    const pageWidth = document.internal.pageSize.getWidth();
+    const pageHeight = document.internal.pageSize.getHeight();
+    const margin = 18;
+    let y = margin;
+
+    document.setFont("helvetica", "bold");
+    document.setFontSize(18);
+    document.text(title, margin, y);
+    y += 9;
+    document.setFont("helvetica", "normal");
+    document.setFontSize(10);
+    document.setTextColor(100);
+    document.text(`Generated ${new Date().toLocaleString()}`, margin, y);
+    y += 10;
+    document.setTextColor(25);
+    document.setFontSize(11);
+
+    for (const paragraph of aiReport.report.split(/\r?\n/)) {
+      const lines = document.splitTextToSize(paragraph || " ", pageWidth - margin * 2);
+      for (const line of lines) {
+        if (y > pageHeight - margin) {
+          document.addPage();
+          y = margin;
+        }
+        document.text(line, margin, y);
+        y += 6;
+      }
+    }
+
+    document.save(`${aiReport.reportType}-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+  }
+
   return <Box sx={{ maxWidth: 1200, mx: "auto" }}>
     <Typography variant="overline" color="primary">Administration</Typography>
     <Typography variant="h3" component="h1">Superadmin dashboard</Typography>
     <Typography color="text.secondary" sx={{ mb: 3 }}>System-wide visibility for users, delivery, and workspace health.</Typography>
+    {inviteMessage && <Alert severity="success" sx={{ mb: 3 }}>{inviteMessage}</Alert>}
     {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
     {isLoading ? <CircularProgress /> : <>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" }, gap: 2, mb: 3 }}>
@@ -118,6 +129,9 @@ export default function SuperAdmin() {
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
               {reportTypes.find((option) => option.value === aiReport.reportType)?.label ?? "Generated report"}
             </Typography>
+            <Button variant="outlined" sx={{ mb: 2 }} onClick={downloadReportPdf}>
+              Download PDF
+            </Button>
             <Box component="pre" sx={{ m: 0, font: "inherit", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
               {aiReport.report}
             </Box>
@@ -125,7 +139,11 @@ export default function SuperAdmin() {
         )}
       </Paper>
       <Stack direction={{ xs: "column", md: "row" }} sx={{ gap: 2 }}>
-        <Paper sx={{ p: 3, flex: 1 }}><Typography variant="h6" sx={{ mb: 2 }}>Registered users</Typography>{userMessage && <Alert severity="info" sx={{ mb: 2 }}>{userMessage}</Alert>}{registeredUsers.map((registeredUser) => <Stack key={`${registeredUser.source}-${registeredUser.id}`} direction={{ xs: "column", sm: "row" }} sx={{ py: 1, borderBottom: "1px solid", borderColor: "divider", justifyContent: "space-between", gap: 1 }}><Box><Typography>{registeredUser.userName}</Typography><Typography variant="body2" color="text.secondary">{registeredUser.email} · {registeredUser.roles.join(", ") || "user"}{registeredUser.source === "supabase" ? " · Supabase" : ""}</Typography></Box><Stack direction="row" spacing={1}><Select size="small" value={registeredUser.roles[0] || "user"} onChange={(event) => changeRole(registeredUser.id, event.target.value)}><MenuItem value="user">User</MenuItem><MenuItem value="admin">Admin</MenuItem><MenuItem value="superadmin">Superadmin</MenuItem></Select><Button size="small" color="error" onClick={() => deleteUser(registeredUser.id)}>Delete</Button></Stack></Stack>)}{!registeredUsers.length && <Typography color="text.secondary">No users found.</Typography>}</Paper>
+        <Paper sx={{ p: 3, flex: 1 }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>Registered users</Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>View system accounts and manage user roles.</Typography>
+          <Button variant="contained" component={Link} to="/superadmin/users">View system users</Button>
+        </Paper>
         <Paper sx={{ p: 3, flex: 1 }}>
           <Typography variant="h6" sx={{ mb: 1 }}>System logs</Typography>
           <Typography color="text.secondary" sx={{ mb: 2 }}>Review recent administrative activity.</Typography>
@@ -133,7 +151,20 @@ export default function SuperAdmin() {
         </Paper>
       </Stack>
       <Stack direction={{ xs: "column", md: "row" }} sx={{ gap: 2, mt: 2 }}>
-        <Paper component="form" onSubmit={createInvitation} sx={{ p: 3, flex: 1 }}><Typography variant="h6">Invite organization member</Typography><Stack spacing={2} sx={{ mt: 2 }}><TextField label="Email" type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} required /><Select value={inviteRole} onChange={(event) => setInviteRole(event.target.value)}>{["user", "admin", ...(user?.app_metadata?.role === "superadmin" ? ["superadmin"] : [])].map((role) => <MenuItem key={role} value={role}>{role}</MenuItem>)}</Select><Button type="submit" variant="contained">Create invitation</Button></Stack></Paper>
+        <Paper sx={{ p: 3, flex: 1 }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>Invite new users</Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            Invite a teammate by email and choose their initial system role.
+          </Typography>
+          <Button
+            variant="contained"
+            component={Link}
+            to="/superadmin/invite"
+            sx={{ width: { xs: "100%", sm: "auto" }, px: 3, py: 1.25, fontWeight: 700 }}
+          >
+            Invite new user
+          </Button>
+        </Paper>
       </Stack>
     </>}
   </Box>;
