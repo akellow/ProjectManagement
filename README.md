@@ -32,6 +32,10 @@ The local startup script runs the API at `http://localhost:5083`. You can also s
 
 Keep credentials and production secrets out of source control.
 
+### Password recovery
+
+Users can select **Forgot your password?** on the sign-in page, request a reset email, and choose a new password through the secure Supabase recovery session. In Supabase Authentication URL Configuration, add `https://project-management-beta-red.vercel.app/reset-password` to the allowed redirect URLs (and `http://localhost:5173/reset-password` for local development). Configure Supabase email/SMTP delivery so recovery messages reach users; use the standard password recovery template link (`{{ .ConfirmationURL }}`). Supabase Auth rate limits and email provider settings apply.
+
 ### Workspace access
 
 New sign-ups are standard users. Authenticated workspace members can read shared project data and use their own account settings and notifications; project changes, employee administration, and organization administration remain restricted to admins or superadmins.

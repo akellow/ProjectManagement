@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import PasswordField from '../components/PasswordField';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 
 export default function Register() {
   const { signUp, signInWithGoogle } = useAuth();
@@ -80,7 +81,7 @@ export default function Register() {
         {!confirmationSent && (
           <div className="form-stack">
             <p className="auth-copy">Or sign up with</p>
-            <button type="button" onClick={handleGoogleSignUp}>Sign up with Google</button>
+            <GoogleAuthButton label="Sign up with Google" onClick={handleGoogleSignUp} />
           </div>
         )}
 

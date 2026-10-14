@@ -216,15 +216,17 @@ public sealed class AiReportService
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             var providerErrorCode = TryGetProviderErrorCode(body);
+            var providerErrorMessage = TryGetProviderErrorMessage(body);
             _logger.LogWarning(
-                "Gemini report request for model {Model} failed with status code {StatusCode} and provider error code {ProviderErrorCode}.",
+                "Gemini report request for model {Model} failed with status code {StatusCode}, provider error code {ProviderErrorCode}, and message {ProviderErrorMessage}.",
                 model,
                 (int)response.StatusCode,
-                providerErrorCode ?? "unknown");
+                providerErrorCode ?? "unknown",
+                providerErrorMessage ?? "unavailable");
             throw new AiReportProviderException(
                 response.StatusCode,
                 providerErrorCode,
-                GetProviderFailureMessage(response.StatusCode, model));
+                GetProviderFailureMessage(response.StatusCode, model, providerErrorMessage));
         }
 
         using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -275,9 +277,37 @@ public sealed class AiReportService
         return null;
     }
 
+    private static string? TryGetProviderErrorMessage(string responseBody)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+            if (document.RootElement.TryGetProperty("error", out var error)
+                && error.ValueKind == JsonValueKind.Object
+                && error.TryGetProperty("message", out var message)
+                && message.ValueKind == JsonValueKind.String)
+            {
+                var providerMessage = message.GetString()?.Trim();
+                if (!string.IsNullOrWhiteSpace(providerMessage))
+                {
+                    return providerMessage.Length <= 500
+                        ? providerMessage
+                        : providerMessage[..500];
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
     private static string GetProviderFailureMessage(
         System.Net.HttpStatusCode statusCode,
-        string model)
+        string model,
+        string? providerErrorMessage)
     {
         if (statusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
         {
@@ -296,7 +326,10 @@ public sealed class AiReportService
 
         if ((int)statusCode == 404)
         {
-            return $"Gemini could not find model '{model}'. Set Gemini__Model to a supported model ID such as gemini-2.5-flash on the API host, or remove that setting to use the default. Then redeploy or restart the API.";
+            var detail = string.IsNullOrWhiteSpace(providerErrorMessage)
+                ? string.Empty
+                : $" Gemini details: {providerErrorMessage}";
+            return $"Gemini could not use model '{model}'. Confirm Gemini__Model is an available model ID for the API key's Google AI Studio project, and that the Gemini API is enabled for that project. Then redeploy or restart the API.{detail}";
         }
 
         return "Gemini could not complete the report request. Check the API server logs and try again.";

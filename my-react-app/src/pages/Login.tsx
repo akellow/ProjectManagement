@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import PasswordField from '../components/PasswordField';
+import GoogleAuthButton from '../components/GoogleAuthButton';
 
 export default function Login({ message }: { message?: string }) {
   const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const resetMessage = (location.state as { message?: string } | null)?.message;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +42,7 @@ export default function Login({ message }: { message?: string }) {
         <h1>Sign in</h1>
         <p className="auth-copy">Use your account details to continue to your workspace.</p>
 
-        {message && <p className="auth-success">{message}</p>}
+        {(message || resetMessage) && <p className="auth-success">{message || resetMessage}</p>}
         {error && <p className="auth-error">{error}</p>}
 
         <form className="form-stack" onSubmit={handleLogin}>
@@ -50,12 +53,13 @@ export default function Login({ message }: { message?: string }) {
 
           <PasswordField id="current-password" label="Password" value={password} onChange={setPassword} required />
 
+          <Link className="forgot-password-link" to="/forgot-password">Forgot your password?</Link>
           <button type="submit">Sign in</button>
         </form>
 
         <div className="form-stack">
           <p className="auth-copy">Or sign in with</p>
-          <button type="button" onClick={handleGoogleLogin}>Continue with Google</button>
+          <GoogleAuthButton label="Sign in with Google" onClick={handleGoogleLogin} />
         </div>
 
         <p className="auth-switch">

@@ -66,13 +66,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return data;
   };
 
+  const requestPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Unable to send a password recovery email.');
+    }
+  };
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      throw new Error(error.message || 'Unable to update your password.');
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthLoading, signUp, signIn, signInWithGoogle, syncEmployee, signOut }}>
+    <AuthContext.Provider value={{ user, isAuthLoading, signUp, signIn, signInWithGoogle, requestPasswordReset, updatePassword, syncEmployee, signOut }}>
       {children}
     </AuthContext.Provider>
   );
