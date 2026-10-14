@@ -33,20 +33,16 @@ public class CommunicationsController : ControllerBase {
         if (employee is null) return BadRequest("A valid employee recipient is required.");
         _context.Communications.Add(communication);
         await _context.SaveChangesAsync();
-        if (!string.IsNullOrWhiteSpace(employee.UserId))
+        if (employee.NotificationsEnabled && !string.IsNullOrWhiteSpace(employee.UserId))
         {
-            var recipient = await _context.Users.FindAsync(employee.UserId);
-            if (recipient?.NotificationsEnabled == true)
+            _context.Notifications.Add(new ProjectApi.Models.Notification
             {
-                _context.Notifications.Add(new ProjectApi.Models.Notification
-                {
-                    UserId = employee.UserId,
-                    CommunicationId = communication.CommunicationId,
-                    Message = communication.Message,
-                    CreatedAt = DateTime.UtcNow
-                });
-                await _context.SaveChangesAsync();
-            }
+                UserId = employee.UserId,
+                CommunicationId = communication.CommunicationId,
+                Message = $"New communication: {communication.Message}",
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
         }
         return CreatedAtAction(nameof(GetCommunication), new { id = communication.CommunicationId }, communication);
     }

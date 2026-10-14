@@ -30,7 +30,21 @@ public class AssignmentsController : ControllerBase
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<Assignment>> CreateAssignment(Assignment assignment)
     {
+        var employee = await _context.Employees.FindAsync(assignment.EmployeeId);
+        var task = await _context.ProjectTasks.FindAsync(assignment.TaskId);
+        if (employee is null || task is null)
+            return BadRequest("A valid task and employee are required.");
+
         _context.Assignments.Add(assignment);
+        if (employee.NotificationsEnabled && !string.IsNullOrWhiteSpace(employee.UserId))
+        {
+            _context.Notifications.Add(new Notification
+            {
+                UserId = employee.UserId,
+                Message = $"You have been assigned to the task \"{task.Title}\".",
+                CreatedAt = DateTime.UtcNow
+            });
+        }
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetAssignment), new { id = assignment.AssignmentId }, assignment);
     }

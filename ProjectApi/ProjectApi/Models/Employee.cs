@@ -6,6 +6,7 @@ public class Employee {
     public string Department { get; set; } = string.Empty;
     public string ContactInfo { get; set; } = string.Empty;
     public string? UserId { get; set; }
+    public bool NotificationsEnabled { get; set; } = true;
 
     public ICollection<Assignment>? Assignments { get; set; }
     public ICollection<Communication>? Communications { get; set; }

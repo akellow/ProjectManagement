@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using ProjectApi.Models;
 using ProjectApi.Services;
+using ProjectApi.Data;
+using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/account")]
@@ -13,11 +15,13 @@ public class AccountController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly EmailOtpService _emailOtpService;
+    private readonly AppDbContext _context;
 
-    public AccountController(UserManager<ApplicationUser> userManager, EmailOtpService emailOtpService)
+    public AccountController(UserManager<ApplicationUser> userManager, EmailOtpService emailOtpService, AppDbContext context)
     {
         _userManager = userManager;
         _emailOtpService = emailOtpService;
+        _context = context;
     }
 
     [HttpGet]
@@ -31,10 +35,27 @@ public class AccountController : ControllerBase
     public async Task<IActionResult> UpdateNotificationSettings(UpdateNotificationSettingsDto dto)
     {
         var user = await GetCurrentUser();
-        if (user is null) return NotFound();
-        user.NotificationsEnabled = dto.Enabled;
-        await _userManager.UpdateAsync(user);
-        return Ok(new { user.NotificationsEnabled });
+        var userId = user?.Id ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var employee = string.IsNullOrWhiteSpace(userId)
+            ? null
+            : await _context.Employees.FirstOrDefaultAsync(item => item.UserId == userId);
+        if (user is null && employee is null) return NotFound();
+
+        if (user is not null)
+        {
+            user.NotificationsEnabled = dto.Enabled;
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded) return BadRequest(result.Errors);
+        }
+
+        if (employee is not null)
+        {
+            employee.NotificationsEnabled = dto.Enabled;
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new { NotificationsEnabled = dto.Enabled });
     }
 
     [HttpPost("email/request")]

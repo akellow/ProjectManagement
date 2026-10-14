@@ -301,6 +301,9 @@ namespace ProjectApi.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("NotificationsEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("UserId")
                         .HasColumnType("text");
 
@@ -659,15 +662,7 @@ namespace ProjectApi.Migrations
                         .WithMany("Notifications")
                         .HasForeignKey("CommunicationId");
 
-                    b.HasOne("ProjectApi.Models.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Communication");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ProjectApi.Models.ProjectEmployee", b =>

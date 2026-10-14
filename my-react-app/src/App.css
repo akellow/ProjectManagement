@@ -557,8 +557,7 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
   gap: 4px;
 }
 
-.navbar-links .MuiButton-root,
-.navbar-bottom-links .MuiButton-root {
+.navbar-links .MuiButton-root {
   justify-content: flex-start;
   min-height: 42px;
   padding: 8px 12px;
@@ -571,16 +570,7 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
   white-space: normal;
 }
 
-.navbar-bottom-links {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: auto;
-  padding-top: 16px;
-}
-
-.navbar-links .MuiButton-root:hover,
-.navbar-bottom-links .MuiButton-root:hover {
+.navbar-links .MuiButton-root:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -595,7 +585,99 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
   min-height: 100svh;
   box-sizing: border-box;
   margin-left: 250px;
-  padding: 32px clamp(20px, 4vw, 56px);
+  padding: 0 clamp(20px, 4vw, 56px) 32px;
+}
+
+.workspace-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 calc(clamp(20px, 4vw, 56px) * -1) 28px;
+  padding: 0 clamp(20px, 4vw, 56px);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  scroll-margin-top: 76px;
+}
+
+.workspace-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.profile-trigger.MuiIconButton-root {
+  display: inline-flex;
+  max-width: min(38vw, 300px);
+  gap: 9px;
+  border-radius: 24px;
+  color: var(--text-h);
+}
+
+.profile-avatar {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--button-bg);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.profile-name {
+  overflow: hidden;
+  max-width: 190px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+}
+
+.topbar-menu.MuiPaper-root {
+  min-width: 240px;
+  max-width: min(360px, calc(100vw - 24px));
+  color: var(--text-h);
+  background: var(--surface);
+  background-image: none;
+  border: 1px solid var(--border);
+}
+
+.topbar-menu .MuiMenuItem-root {
+  min-height: 46px;
+  gap: 12px;
+  white-space: normal;
+}
+
+.topbar-menu .MuiMenuItem-root svg {
+  flex: 0 0 auto;
+}
+
+.profile-menu-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.topbar-menu-heading {
+  padding: 14px 16px;
+  color: var(--text-h);
+  font-weight: 700;
+}
+
+.topbar-empty {
+  padding: 16px;
+  color: var(--text);
+}
+
+.notification-unread.MuiMenuItem-root {
+  font-weight: 700;
+  background: var(--accent-bg);
 }
 
 .MuiButton-root {
@@ -747,8 +829,7 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
     background-color: var(--navbar-bg);
   }
 
-  .mobile-drawer .navbar-links .MuiButton-root,
-  .mobile-drawer .navbar-bottom-links .MuiButton-root {
+  .mobile-drawer .navbar-links .MuiButton-root {
     color: #fff;
   }
 
@@ -763,7 +844,26 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
   .page-content {
     width: 100%;
     margin-left: 0;
-    padding-top: 96px;
+    padding: 0 20px 24px;
+  }
+
+  .workspace-topbar {
+    min-height: 62px;
+    margin: 0 -20px 24px;
+    padding: 0 16px 0 68px;
+  }
+
+  .workspace-label {
+    display: none;
+  }
+
+  .profile-trigger.MuiIconButton-root {
+    max-width: 210px;
+    padding: 4px;
+  }
+
+  .profile-name {
+    max-width: 118px;
   }
 
   .page-content .MuiStack-root {
@@ -777,7 +877,18 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
 
 @media (max-width: 480px) {
   .page-content {
-    padding: 88px 14px 24px;
+    padding: 0 14px 24px;
+  }
+
+  .workspace-topbar {
+    margin-right: -14px;
+    margin-left: -14px;
+    padding-right: 12px;
+    padding-left: 60px;
+  }
+
+  .profile-name {
+    max-width: 94px;
   }
 
   .page-content .MuiStack-root[style*="flex-direction: row"] {

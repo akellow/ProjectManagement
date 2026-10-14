@@ -93,17 +93,27 @@ public class AdminController : ControllerBase
         {
             try
             {
+                var supabaseEmployee = await _context.Employees.FirstOrDefaultAsync(item => item.UserId == id);
+                var previousSupabaseRole = supabaseEmployee?.Role ?? "user";
                 await _organizationAdminService.UpdateSupabaseUserRoleAsync(
                     id,
                     dto.Role,
                     User.Identity?.Name ?? "admin",
                     HasTrustedSuperAdminRole());
-                var supabaseEmployee = await _context.Employees.FirstOrDefaultAsync(item => item.UserId == id);
                 if (supabaseEmployee is not null)
                 {
                     supabaseEmployee.Role = dto.Role.ToLowerInvariant();
-                    await _context.SaveChangesAsync();
                 }
+                if (supabaseEmployee?.NotificationsEnabled != false && IsRoleElevated(previousSupabaseRole, dto.Role))
+                {
+                    _context.Notifications.Add(new Notification
+                    {
+                        UserId = id,
+                        Message = $"Your role has been elevated from {previousSupabaseRole} to {dto.Role.ToLowerInvariant()}.",
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                await _context.SaveChangesAsync();
 
                 return Ok(new { Id = id, Role = dto.Role.ToLowerInvariant(), Source = "supabase" });
             }
@@ -126,17 +136,27 @@ public class AdminController : ControllerBase
         if (currentUser?.Id == user.Id && !string.Equals(dto.Role, "superadmin", StringComparison.OrdinalIgnoreCase))
             return BadRequest("You cannot remove your own superadmin access.");
         var currentRoles = await _userManager.GetRolesAsync(user);
+        var employee = await _context.Employees.FirstOrDefaultAsync(item => item.UserId == user.Id);
+        var previousIdentityRole = currentRoles.OrderByDescending(GetRoleRank).FirstOrDefault() ?? employee?.Role ?? "user";
         if (currentRoles.Any(IsPrivilegedRole) && !HasTrustedSuperAdminRole()) return Forbid();
         var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
         if (!removeResult.Succeeded) return BadRequest(removeResult.Errors);
         var addResult = await _userManager.AddToRoleAsync(user, dto.Role.ToLowerInvariant());
         if (!addResult.Succeeded) return BadRequest(addResult.Errors);
-        var employee = await _context.Employees.FirstOrDefaultAsync(item => item.UserId == user.Id);
         if (employee is not null)
         {
             employee.Role = dto.Role.ToLowerInvariant();
-            await _context.SaveChangesAsync();
         }
+        if ((employee?.NotificationsEnabled ?? user.NotificationsEnabled) && IsRoleElevated(previousIdentityRole, dto.Role))
+        {
+            _context.Notifications.Add(new Notification
+            {
+                UserId = user.Id,
+                Message = $"Your role has been elevated from {previousIdentityRole} to {dto.Role.ToLowerInvariant()}.",
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        await _context.SaveChangesAsync();
         _organizationAdminService.AddAudit(User.Identity?.Name ?? "admin", "user.role.updated", user.UserName ?? id);
         return Ok(new { user.Id, user.UserName, Role = dto.Role.ToLowerInvariant() });
     }
@@ -303,6 +323,16 @@ public class AdminController : ControllerBase
     private static bool IsPrivilegedRole(string role) =>
         role.Equals("admin", StringComparison.OrdinalIgnoreCase)
         || role.Equals("superadmin", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsRoleElevated(string previousRole, string newRole) =>
+        GetRoleRank(newRole) > GetRoleRank(previousRole);
+
+    private static int GetRoleRank(string role) => role.ToLowerInvariant() switch
+    {
+        "admin" => 1,
+        "superadmin" => 2,
+        _ => 0
+    };
 
     private async Task EnsureRoleExists(string role)
     {

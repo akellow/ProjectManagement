@@ -9,6 +9,5 @@ public class Notification
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsRead { get; set; }
 
-    public ApplicationUser? User { get; set; }
     public Communication? Communication { get; set; }
 }

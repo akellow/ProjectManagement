@@ -21,14 +21,10 @@ function preloadRoute(path: string) {
 }
 
 export default function Navbar() {
-   const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const closeMobileNav = () => setMobileOpen(false);
-    const handleLogout = () => {
-      closeMobileNav();
-      signOut();
-  };
 
   const navigation = user ? (
     <>
@@ -50,25 +46,7 @@ export default function Navbar() {
   );
 
   const navigationContent = (
-    <>
-      <Box className="navbar-links">{navigation}</Box>
-      {user && (
-        <Box className="navbar-bottom-links">
-          <Button color="inherit" onClick={handleLogout}>Logout</Button>
-          <Button
-            color="inherit"
-            component={Link}
-            to="/settings"
-            onClick={closeMobileNav}
-            onMouseEnter={() => preloadRoute("/settings")}
-            onFocus={() => preloadRoute("/settings")}
-            startIcon={<SettingsIcon />}
-          >
-            Settings
-          </Button>
-        </Box>
-      )}
-    </>
+    <Box className="navbar-links">{navigation}</Box>
   );
 
   return (
@@ -106,14 +84,5 @@ export default function Navbar() {
         {navigationContent}
       </Drawer>
     </>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
-      <path d="m19.4 15 .1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 0 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 0 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 0 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1a1.8 1.8 0 0 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 0 1 3.6 0v.2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 0 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z" />
-    </svg>
   );
 }

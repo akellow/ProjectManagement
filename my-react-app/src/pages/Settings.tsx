@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -27,12 +28,13 @@ type Notification = { notificationId: number; message: string; createdAt: string
 type SettingsGroupProps = {
   title: string;
   description: string;
+  id?: string;
   children: React.ReactNode;
 };
 
-function SettingsGroup({ title, description, children }: SettingsGroupProps) {
+function SettingsGroup({ title, description, id, children }: SettingsGroupProps) {
   return (
-    <Paper component="section" sx={{ p: { xs: 2, sm: 3 } }}>
+    <Paper component="section" id={id} sx={{ p: { xs: 2, sm: 3 } }}>
       <Typography variant="h5" component="h2">{title}</Typography>
       <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2.5 }}>{description}</Typography>
       {children}
@@ -41,6 +43,7 @@ function SettingsGroup({ title, description, children }: SettingsGroupProps) {
 }
 
 export default function Settings() {
+  const location = useLocation();
   const { user } = useAuth();
   const { preferences, saveSettings } = useSettings();
   const [displayName, setDisplayName] = useState("");
@@ -60,10 +63,17 @@ export default function Settings() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationsError, setNotificationsError] = useState("");
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
 
   useEffect(() => {
     setDraftPreferences(preferences);
   }, [preferences]);
+
+  useEffect(() => {
+    if (location.hash === "#notifications") {
+      document.getElementById("notifications")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [location.hash]);
 
   useEffect(() => {
     setDisplayName(
@@ -76,18 +86,25 @@ export default function Settings() {
 
   useEffect(() => {
     let active = true;
-    api.get<Notification[]>("/notifications")
-      .then((response) => {
-        if (active) setNotifications(response.data);
-      })
-      .catch((error: unknown) => {
+    async function loadNotifications() {
+      try {
+        const response = await api.get<Notification[]>("/notifications");
+        if (active) {
+          setNotifications(response.data);
+          setNotificationsError("");
+        }
+      } catch (error: unknown) {
         if (active) setNotificationsError(readApiError(error, "Unable to load notifications."));
-      })
-      .finally(() => {
+      } finally {
         if (active) setIsLoadingNotifications(false);
-      });
+      }
+    }
+
+    void loadNotifications();
+    const refreshTimer = window.setInterval(() => void loadNotifications(), 30_000);
     return () => {
       active = false;
+      window.clearInterval(refreshTimer);
     };
   }, []);
 
@@ -139,6 +156,7 @@ export default function Settings() {
   }
 
   async function updateNotifications(enabled: boolean) {
+    setIsSavingNotifications(true);
     setSettingsError("");
     setSettingsMessage("");
     try {
@@ -149,6 +167,8 @@ export default function Settings() {
       setSettingsMessage("Notification preference saved.");
     } catch (error: unknown) {
       setSettingsError(error instanceof Error ? error.message : "Unable to update notification settings.");
+    } finally {
+      setIsSavingNotifications(false);
     }
   }
 
@@ -284,14 +304,14 @@ export default function Settings() {
           </Stack>
         </SettingsGroup>
 
-        <SettingsGroup title="Notifications" description="Choose whether you receive in-app notifications and review recent activity.">
+        <SettingsGroup id="notifications" title="Notifications" description="Choose whether you receive in-app notifications and review recent activity.">
           <Stack spacing={2}>
             <FormControlLabel
               control={
                 <Switch
                   checked={draftPreferences.notificationsEnabled}
                   onChange={(event) => void updateNotifications(event.target.checked)}
-                  disabled={isSavingSettings}
+                  disabled={isSavingNotifications}
                 />
               }
               label={draftPreferences.notificationsEnabled ? "In-app notifications enabled" : "In-app notifications disabled"}
@@ -300,7 +320,7 @@ export default function Settings() {
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Recent notifications</Typography>
             {notificationsError && <Alert severity="error">{notificationsError}</Alert>}
             {isLoadingNotifications ? <Typography color="text.secondary">Loading notifications...</Typography> : (
-              <Stack spacing={1}>
+              <Stack spacing={1} aria-live="polite" aria-relevant="additions text">
                 {notifications.map((notification) => (
                   <Stack
                     key={notification.notificationId}
