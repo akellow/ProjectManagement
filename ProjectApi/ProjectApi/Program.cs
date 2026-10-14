@@ -52,7 +52,14 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 
-builder.Services.AddIdentityCore<ApplicationUser>()
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
+    {
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+    })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>();
 

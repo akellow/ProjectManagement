@@ -12,7 +12,11 @@ dotnet user-secrets set "Jwt:SuperAdminEmail" "your-admin@example.com" --project
 dotnet user-secrets set "Jwt:SuperAdminPassword" "Choose-a-unique-password-1!" --project ..\ProjectApi\ProjectApi\ProjectApi.csproj
 ```
 
-Use the same username as `Jwt:SuperAdminUsername` in the active configuration; the Development configuration uses `Akello`. The password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a symbol. Restart ProjectApi after setting these values; startup seeding will recreate the user and assign the `superadmin` role if it is missing.
+Use the same username as `Jwt:SuperAdminUsername` in the active configuration; the Development configuration uses `Akello`. The API requires at least 8 characters, a lowercase letter, and a number; uppercase letters and symbols are optional. Restart ProjectApi after setting these values; startup seeding will recreate the user and assign the `superadmin` role if it is missing.
+
+### Render deployment
+
+In the ProjectApi Render service's **Environment** settings, configure `Jwt__SuperAdminUsername`, `Jwt__SuperAdminEmail`, and `Jwt__SuperAdminPassword`. Render's double-underscore environment variable syntax maps these names to the `Jwt` configuration section. The API requires at least 8 characters, a lowercase letter, and a number; uppercase letters and symbols are optional. Save the changes and redeploy; startup seeding will create the configured superadmin if it is missing.
 
 ## Required pattern
 
