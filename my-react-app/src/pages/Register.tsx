@@ -80,7 +80,7 @@ export default function Register() {
 
         {!confirmationSent && (
           <div className="form-stack">
-            <p className="auth-copy">Or sign up with</p>
+            <p className="auth-copy">Or</p>
             <GoogleAuthButton label="Sign up with Google" onClick={handleGoogleSignUp} />
           </div>
         )}

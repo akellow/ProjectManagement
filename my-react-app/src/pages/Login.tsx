@@ -58,7 +58,7 @@ export default function Login({ message }: { message?: string }) {
         </form>
 
         <div className="form-stack">
-          <p className="auth-copy">Or sign in with</p>
+          <p className="auth-copy">Or</p>
           <GoogleAuthButton label="Sign in with Google" onClick={handleGoogleLogin} />
         </div>
 
