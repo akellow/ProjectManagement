@@ -42,7 +42,7 @@ New sign-ups are standard users. Authenticated workspace members can read shared
 
 ### AI reports
 
-The superadmin dashboard can generate portfolio, task/schedule, risk, and resource reports using the Gemini API. Configure `Gemini:ApiKey` as a .NET user secret or set the `Gemini__ApiKey` environment variable on the API host. Optionally set `Gemini:Model` / `Gemini__Model`; the default is `gemini-2.5-flash`. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/).
+The superadmin dashboard can generate portfolio, task/schedule, risk, and resource reports using the Gemini Interactions API. Configure `Gemini:ApiKey` as a .NET user secret or set the `Gemini__ApiKey` environment variable on the API host. Optionally set `Gemini:Model` / `Gemini__Model`; the default is `gemini-3.8-flash`. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/).
 
 Report generation is restricted to superadmins. The API sends project names and aggregated project/task/milestone/risk/resource metrics to Gemini; it does not send employee contact details. Resource costs in reports are the values recorded on resources, not verified actual spending. Review Google's current Gemini API data-use terms and free-tier limits before sending project data; do not include sensitive information unless your organization's terms allow it.
 
