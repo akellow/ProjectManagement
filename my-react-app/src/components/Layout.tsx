@@ -72,7 +72,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <Navbar />
       <Box component="main" className="page-content">
         <Box component="header" className="workspace-topbar">
-          <Typography className="workspace-label" color="text.secondary">Project Management</Typography>
+          <Typography className="workspace-label" color="text.secondary">My Workspace</Typography>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <Tooltip title="Notifications">
               <IconButton
