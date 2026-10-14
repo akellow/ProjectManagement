@@ -2,6 +2,18 @@
 
 This app keeps the service-role secret out of browser code.
 
+## ProjectApi Identity superadmin
+
+The ProjectApi seeds its Identity superadmin only when all three settings are configured. From the `my-react-app` directory, keep the password out of tracked settings and configure local values with .NET User Secrets:
+
+```powershell
+dotnet user-secrets set "Jwt:SuperAdminUsername" "Akello" --project ..\ProjectApi\ProjectApi\ProjectApi.csproj
+dotnet user-secrets set "Jwt:SuperAdminEmail" "your-admin@example.com" --project ..\ProjectApi\ProjectApi\ProjectApi.csproj
+dotnet user-secrets set "Jwt:SuperAdminPassword" "Choose-a-unique-password-1!" --project ..\ProjectApi\ProjectApi\ProjectApi.csproj
+```
+
+Use the same username as `Jwt:SuperAdminUsername` in the active configuration; the Development configuration uses `Akello`. The password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a symbol. Restart ProjectApi after setting these values; startup seeding will recreate the user and assign the `superadmin` role if it is missing.
+
 ## Required pattern
 
 - Frontend: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
