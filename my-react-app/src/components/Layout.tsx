@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Badge, Box, Divider, IconButton, Menu, MenuItem, Popover, Snackbar, Stack, Tooltip, Typography } from "@mui/material";
+import { Alert, Badge, Box, Button, Divider, IconButton, Menu, MenuItem, Popover, Snackbar, Stack, Tooltip, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
 import { useAuth } from "../context/AuthContext";
@@ -141,9 +141,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Box>
           <Divider />
           <Box className="notification-popover-footer">
-            <MenuItem component={Link} to="/notifications" onClick={() => setNotificationAnchor(null)}>
+            <Button
+              component={Link}
+              to="/notifications"
+              className="notification-popover-link"
+              onClick={() => setNotificationAnchor(null)}
+            >
               View all notifications
-            </MenuItem>
+            </Button>
           </Box>
         </Popover>
         <Menu

@@ -747,11 +747,13 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
   padding: 2px 8px;
 }
 
-.notification-popover-footer .MuiMenuItem-root {
+.notification-popover-footer .notification-popover-link.MuiButton-root {
   min-height: 36px;
   justify-content: center;
   color: var(--accent);
   font-size: 0.82rem;
+  text-decoration: none;
+  text-transform: none;
 }
 
 .notification-unread-dot {
