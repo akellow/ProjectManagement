@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Alert, Badge, Box, Divider, IconButton, Menu, MenuItem, Snackbar, Stack, Tooltip, Typography } from "@mui/material";
+import { Alert, Badge, Box, Divider, IconButton, Menu, MenuItem, Popover, Snackbar, Stack, Tooltip, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import api from "../services/api";
 
-type Notification = { notificationId: number; message: string; createdAt: string; isRead: boolean };
+type Notification = { notificationId: number; senderName: string; message: string; createdAt: string; isRead: boolean };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
@@ -98,36 +98,52 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Tooltip>
           </Stack>
         </Box>
-        <Menu
+        <Popover
           anchorEl={notificationAnchor}
           open={Boolean(notificationAnchor)}
           onClose={() => setNotificationAnchor(null)}
-          slotProps={{ paper: { className: "topbar-menu notifications-menu" } }}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+          slotProps={{ paper: { className: "notification-popover" } }}
         >
-          <Typography className="topbar-menu-heading">Notifications</Typography>
+          <Box className="notification-popover-header">
+            <Typography sx={{ fontWeight: 700 }}>Notifications</Typography>
+            <IconButton aria-label="Close notifications" size="small" onClick={() => setNotificationAnchor(null)}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
           <Divider />
-          {notifications.slice(0, 5).map((notification) => (
-            <MenuItem
-              key={notification.notificationId}
-              onClick={() => {
-                if (!notification.isRead) void markRead(notification);
-                setNotificationAnchor(null);
-              }}
-              component={Link}
-              to="/settings#notifications"
-              className={notification.isRead ? "" : "notification-unread"}
-            >
-              <span>{notification.message}</span>
+          <Box className="notification-popover-list" aria-live="polite" aria-relevant="additions text">
+            {notifications.slice(0, 8).map((notification) => (
+              <Box
+                component="button"
+                type="button"
+                key={notification.notificationId}
+                className={`notification-popover-item${notification.isRead ? "" : " is-unread"}`}
+                onClick={() => { if (!notification.isRead) void markRead(notification); }}
+              >
+                <Typography component="span" className="notification-sender">
+                  {notification.senderName || "Project team"}
+                </Typography>
+                <Typography component="span" className="notification-message">
+                  {notification.message}
+                </Typography>
+                <Typography component="time" dateTime={notification.createdAt} className="notification-time">
+                  {formatNotificationTime(notification.createdAt)}
+                </Typography>
+              </Box>
+            ))}
+            {!notifications.length && (
+              <Typography className="topbar-empty">You’re all caught up.</Typography>
+            )}
+          </Box>
+          <Divider />
+          <Box className="notification-popover-footer">
+            <MenuItem component={Link} to="/notifications" onClick={() => setNotificationAnchor(null)}>
+              View all notifications
             </MenuItem>
-          ))}
-          {!notifications.length && (
-            <Typography className="topbar-empty">You’re all caught up.</Typography>
-          )}
-          <Divider />
-          <MenuItem component={Link} to="/settings#notifications" onClick={() => setNotificationAnchor(null)}>
-            View all notifications
-          </MenuItem>
-        </Menu>
+          </Box>
+        </Popover>
         <Menu
           anchorEl={profileAnchor}
           open={Boolean(profileAnchor)}
@@ -150,7 +166,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <ThemeIcon />
             Switch to {preferences.theme === "dark" ? "light" : "dark"} theme
           </MenuItem>
-          <MenuItem component={Link} to="/settings#notifications" onClick={() => setProfileAnchor(null)}>
+          <MenuItem component={Link} to="/notifications" onClick={() => setProfileAnchor(null)}>
             <BellIcon />
             Notifications
           </MenuItem>
@@ -176,6 +192,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 function BellIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>;
+}
+
+function CloseIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="m18 6-12 12M6 6l12 12" /></svg>;
+}
+
+function formatNotificationTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
 
 function ChevronIcon() {

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -23,8 +22,6 @@ import type { DateFormat, ThemeMode, UserPreferences, WeekStart } from "../conte
 import api from "../services/api";
 import { supabase } from "../services/supabaseClient";
 
-type Notification = { notificationId: number; message: string; createdAt: string; isRead: boolean };
-
 type SettingsGroupProps = {
   title: string;
   description: string;
@@ -43,7 +40,6 @@ function SettingsGroup({ title, description, id, children }: SettingsGroupProps)
 }
 
 export default function Settings() {
-  const location = useLocation();
   const { user } = useAuth();
   const { preferences, saveSettings } = useSettings();
   const [displayName, setDisplayName] = useState("");
@@ -60,20 +56,11 @@ export default function Settings() {
   const [securityMessage, setSecurityMessage] = useState("");
   const [securityError, setSecurityError] = useState("");
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [notificationsError, setNotificationsError] = useState("");
-  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
 
   useEffect(() => {
     setDraftPreferences(preferences);
   }, [preferences]);
-
-  useEffect(() => {
-    if (location.hash === "#notifications") {
-      document.getElementById("notifications")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [location.hash]);
 
   useEffect(() => {
     setDisplayName(
@@ -84,42 +71,10 @@ export default function Settings() {
     setNewEmail(user?.email ?? "");
   }, [user?.id, user?.email, user?.user_metadata?.full_name, user?.user_metadata?.name]);
 
-  useEffect(() => {
-    let active = true;
-    async function loadNotifications() {
-      try {
-        const response = await api.get<Notification[]>("/notifications");
-        if (active) {
-          setNotifications(response.data);
-          setNotificationsError("");
-        }
-      } catch (error: unknown) {
-        if (active) setNotificationsError(readApiError(error, "Unable to load notifications."));
-      } finally {
-        if (active) setIsLoadingNotifications(false);
-      }
-    }
-
-    void loadNotifications();
-    const refreshTimer = window.setInterval(() => void loadNotifications(), 30_000);
-    return () => {
-      active = false;
-      window.clearInterval(refreshTimer);
-    };
-  }, []);
-
   const identities: { provider: string }[] = user?.identities ?? [];
   const providers = identities.length
     ? Array.from(new Set<string>(identities.map((identity) => identity.provider)))
     : ["email"];
-  const notificationDateLocale = draftPreferences.dateFormat === "mdy"
-    ? "en-US"
-    : draftPreferences.dateFormat === "dmy"
-      ? "en-GB"
-      : draftPreferences.dateFormat === "ymd"
-        ? "sv-SE"
-        : undefined;
-
   function updatePreference<Key extends keyof UserPreferences>(key: Key, value: UserPreferences[Key]) {
     setDraftPreferences((current) => ({ ...current, [key]: value }));
   }
@@ -169,19 +124,6 @@ export default function Settings() {
       setSettingsError(error instanceof Error ? error.message : "Unable to update notification settings.");
     } finally {
       setIsSavingNotifications(false);
-    }
-  }
-
-  async function markNotificationRead(notificationId: number) {
-    setNotificationsError("");
-    try {
-      await api.put(`/notifications/${notificationId}/read`);
-      setNotifications((current) => current.map((notification) =>
-        notification.notificationId === notificationId
-          ? { ...notification, isRead: true }
-          : notification));
-    } catch (error: unknown) {
-      setNotificationsError(readApiError(error, "Unable to update notification."));
     }
   }
 
@@ -304,7 +246,7 @@ export default function Settings() {
           </Stack>
         </SettingsGroup>
 
-        <SettingsGroup id="notifications" title="Notifications" description="Choose whether you receive in-app notifications and review recent activity.">
+        <SettingsGroup title="Notifications" description="Choose whether you receive in-app notifications. Open the bell in the workspace header to view your inbox.">
           <Stack spacing={2}>
             <FormControlLabel
               control={
@@ -316,49 +258,6 @@ export default function Settings() {
               }
               label={draftPreferences.notificationsEnabled ? "In-app notifications enabled" : "In-app notifications disabled"}
             />
-            <Divider />
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Recent notifications</Typography>
-            {notificationsError && <Alert severity="error">{notificationsError}</Alert>}
-            {isLoadingNotifications ? <Typography color="text.secondary">Loading notifications...</Typography> : (
-              <Stack spacing={1} aria-live="polite" aria-relevant="additions text">
-                {notifications.map((notification) => (
-                  <Stack
-                    key={notification.notificationId}
-                    direction={{ xs: "column", sm: "row" }}
-                    sx={{
-                      justifyContent: "space-between",
-                      alignItems: { sm: "center" },
-                      gap: 1,
-                      p: 1.5,
-                      bgcolor: notification.isRead ? "transparent" : "action.hover",
-                      borderRadius: 1,
-                    }}
-                  >
-                    <Box>
-                      <Typography sx={{ fontWeight: notification.isRead ? "normal" : 700 }}>
-                        {notification.message}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(notification.createdAt).toLocaleString(notificationDateLocale, {
-                          timeZone: draftPreferences.timeZone,
-                          year: "numeric",
-                          month: draftPreferences.dateFormat === "locale" ? "long" : "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </Typography>
-                    </Box>
-                    {!notification.isRead && (
-                      <Button size="small" onClick={() => void markNotificationRead(notification.notificationId)}>
-                        Mark read
-                      </Button>
-                    )}
-                  </Stack>
-                ))}
-                {!notifications.length && <Typography color="text.secondary">No notifications yet.</Typography>}
-              </Stack>
-            )}
           </Stack>
         </SettingsGroup>
 
@@ -410,18 +309,4 @@ export default function Settings() {
       </Stack>
     </Box>
   );
-}
-
-function readApiError(error: unknown, fallback: string) {
-  if (typeof error === "object" && error !== null && "response" in error) {
-    const response = error.response;
-    if (typeof response === "object" && response !== null && "data" in response) {
-      const data = response.data;
-      if (typeof data === "string") return data;
-      if (typeof data === "object" && data !== null && "detail" in data && typeof data.detail === "string") {
-        return data.detail;
-      }
-    }
-  }
-  return error instanceof Error ? error.message : fallback;
 }

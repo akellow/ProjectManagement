@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ProjectApi.Data;
 using ProjectApi.Models;
+using System.Security.Claims;
 
 namespace ProjectApi.Controllers;
 
@@ -15,11 +16,13 @@ public class CommunicationsController : ControllerBase {
 
     // GET: api/communications
     [HttpGet]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<IEnumerable<Communication>>> GetCommunications() =>
         await _context.Communications.ToListAsync();
 
     // GET: api/communications/{id}
     [HttpGet("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<Communication>> GetCommunication(int id) {
         var communication = await _context.Communications.FindAsync(id);
         return communication is null ? NotFound() : communication;
@@ -78,9 +81,20 @@ public class CommunicationsController : ControllerBase {
         if (!employee.NotificationsEnabled || string.IsNullOrWhiteSpace(employee.UserId))
             return;
 
+        var senderName = User.FindFirstValue("preferred_username")
+            ?? User.FindFirstValue("username")
+            ?? User.FindFirstValue("name")
+            ?? User.FindFirstValue(ClaimTypes.Name);
+        if (string.IsNullOrWhiteSpace(senderName))
+        {
+            var email = User.FindFirstValue("email");
+            senderName = string.IsNullOrWhiteSpace(email) ? "Project team" : email.Split('@')[0];
+        }
+
         _context.Notifications.Add(new ProjectApi.Models.Notification
         {
             UserId = employee.UserId,
+            SenderName = senderName,
             Communication = communication,
             Message = $"Communication from your project team: {communication.Message}",
             CreatedAt = DateTime.UtcNow

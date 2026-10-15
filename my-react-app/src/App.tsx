@@ -2,6 +2,7 @@ import './App.css';
 import { lazy, Suspense } from 'react';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import SuperAdminRoute from './components/SuperAdminRoute';
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -20,6 +21,7 @@ const Milestones = lazy(() => import('./pages/Milestones'));
 const Risks = lazy(() => import('./pages/Risks'));
 const Communications = lazy(() => import('./pages/Communications'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Notifications = lazy(() => import('./pages/Notifications'));
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
 const SystemUsers = lazy(() => import('./pages/SystemUsers'));
 const InviteUser = lazy(() => import('./pages/InviteUser'));
@@ -51,8 +53,16 @@ function AppShell() {
           <Route path="/resources" element={<Resources />} />
           <Route path="/milestones" element={<Milestones />} />
           <Route path="/risks" element={<Risks />} />
-          <Route path="/communications" element={<Communications />} />
+          <Route
+            path="/communications"
+            element={
+              <AdminRoute>
+                <Communications />
+              </AdminRoute>
+            }
+          />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/account" element={<Navigate to="/settings" replace />} />
           <Route
             path="/superadmin"

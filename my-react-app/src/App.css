@@ -675,6 +675,93 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
   color: var(--text);
 }
 
+.notification-popover.MuiPaper-root {
+  display: flex;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(520px, calc(100dvh - 96px));
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text-h);
+  background: var(--surface);
+  background-image: none;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 22%);
+}
+
+.notification-popover-header,
+.notification-popover-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+}
+
+.notification-popover-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.notification-popover-item {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 9px 14px;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.notification-popover-item:hover,
+.notification-popover-item.is-unread {
+  background: var(--accent-bg);
+}
+
+.notification-sender.MuiTypography-root {
+  font-size: 0.79rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.notification-message.MuiTypography-root {
+  font-size: 0.84rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.notification-time.MuiTypography-root {
+  align-self: flex-end;
+  color: var(--text);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.notification-popover-footer {
+  justify-content: center;
+  padding: 2px 8px;
+}
+
+.notification-popover-footer .MuiMenuItem-root {
+  min-height: 36px;
+  justify-content: center;
+  color: var(--accent);
+  font-size: 0.82rem;
+}
+
+.notification-unread-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
 .notification-unread.MuiMenuItem-root {
   font-weight: 700;
   background: var(--accent-bg);

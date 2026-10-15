@@ -13,6 +13,7 @@ const routePreloaders: Record<string, () => Promise<unknown>> = {
   "/risks": () => import("../pages/Risks"),
   "/communications": () => import("../pages/Communications"),
   "/settings": () => import("../pages/Settings"),
+  "/notifications": () => import("../pages/Notifications"),
   "/superadmin": () => import("../pages/SuperAdmin"),
   "/superadmin/users": () => import("../pages/SystemUsers"),
   "/superadmin/invite": () => import("../pages/InviteUser"),
@@ -37,7 +38,9 @@ export default function Navbar() {
       <Button color="inherit" component={Link} to="/resources" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/resources")} onFocus={() => preloadRoute("/resources")}>Resources</Button>
       <Button color="inherit" component={Link} to="/milestones" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/milestones")} onFocus={() => preloadRoute("/milestones")}>Milestones</Button>
       <Button color="inherit" component={Link} to="/risks" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/risks")} onFocus={() => preloadRoute("/risks")}>Risks</Button>
-      <Button color="inherit" component={Link} to="/communications" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/communications")} onFocus={() => preloadRoute("/communications")}>Communications</Button>
+      {(user.app_metadata?.role === "admin" || user.app_metadata?.role === "superadmin") && (
+        <Button color="inherit" component={Link} to="/communications" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/communications")} onFocus={() => preloadRoute("/communications")}>Communications</Button>
+      )}
       {user.app_metadata?.role === "superadmin" && <Button color="inherit" component={Link} to="/superadmin" onClick={closeMobileNav} onMouseEnter={() => preloadRoute("/superadmin")} onFocus={() => preloadRoute("/superadmin")}>Admin</Button>}
     </>
   ) : (
