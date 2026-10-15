@@ -101,6 +101,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Popover
           anchorEl={notificationAnchor}
           open={Boolean(notificationAnchor)}
+          hideBackdrop
+          disableScrollLock
           onClose={() => setNotificationAnchor(null)}
           anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
           transformOrigin={{ vertical: "top", horizontal: "right" }}

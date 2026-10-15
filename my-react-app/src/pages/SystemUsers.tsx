@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Select, Stack, Typography } from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 
@@ -17,8 +17,10 @@ export default function SystemUsers() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busyUserId, setBusyUserId] = useState("");
+  const [search, setSearch] = useState("");
 
-  async function loadUsers() {
+  async function loadUsers(showSpinner = false) {
+    if (showSpinner) setIsLoading(true);
     setError("");
     try {
       const response = await api.get<SystemUser[]>("/admin/users");
@@ -33,6 +35,27 @@ export default function SystemUsers() {
   useEffect(() => {
     void loadUsers();
   }, []);
+
+  const filteredUsers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return users.filter((systemUser) => !query || [
+      systemUser.userName,
+      systemUser.email,
+      systemUser.source,
+      ...systemUser.roles,
+    ].some((value) => value.toLowerCase().includes(query)));
+  }, [search, users]);
+
+  const groupedUsers = useMemo(() => {
+    const groups = new Map<string, SystemUser[]>();
+    for (const systemUser of filteredUsers) {
+      const groupName = systemUser.source === "supabase" ? "Supabase Auth" : "API Identity";
+      const group = groups.get(groupName) ?? [];
+      group.push(systemUser);
+      groups.set(groupName, group);
+    }
+    return Array.from(groups.entries());
+  }, [filteredUsers]);
 
   async function changeRole(user: SystemUser, role: string) {
     setBusyUserId(user.id);
@@ -76,55 +99,92 @@ export default function SystemUsers() {
       <Button component={Link} to="/superadmin" sx={{ mb: 2 }}>Back to superadmin dashboard</Button>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Search users"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          slotProps={{ htmlInput: { "aria-label": "Search system users" } }}
+          sx={{ flex: 1, minWidth: 180 }}
+        />
+        <Button onClick={() => void loadUsers(true)} disabled={isLoading}>
+          {isLoading ? <CircularProgress size={20} /> : "Refresh"}
+        </Button>
+      </Stack>
       {isLoading ? <CircularProgress /> : (
-        <Stack spacing={1.5}>
-          {users.map((systemUser) => {
+        <Stack spacing={2}>
+          {groupedUsers.map(([source, sourceUsers]) => (
+            <Box component="section" key={source} aria-label={source}>
+              <Typography variant="overline" color="text.secondary" sx={{ px: 1 }}>{source}</Typography>
+              <Paper sx={{ overflow: "hidden" }}>
+                {sourceUsers.map((systemUser) => {
             const currentRole = systemUser.roles[0] ?? "user";
             const isSuperadmin = systemUser.roles.some((role) => role.toLowerCase() === "superadmin");
             return (
-              <Paper key={`${systemUser.source}-${systemUser.id}`} sx={{ p: 2.5 }}>
+              <Stack
+                key={`${systemUser.source}-${systemUser.id}`}
+                direction={{ xs: "column", md: "row" }}
+                spacing={{ xs: 1, md: 2 }}
+                sx={{
+                  justifyContent: "space-between",
+                  alignItems: { md: "center" },
+                  px: 2,
+                  py: 1.25,
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                  "&:last-child": { borderBottom: 0 },
+                }}
+              >
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>{systemUser.userName}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+                    {systemUser.email || "No email"}
+                  </Typography>
+                </Box>
                 <Stack
-                  direction={{ xs: "column", md: "row" }}
-                  spacing={2}
-                  sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: "center", flexWrap: "wrap" }}
                 >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="h6">{systemUser.userName}</Typography>
-                    <Typography color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
-                      {systemUser.email || "No email"} · {systemUser.source === "supabase" ? "Supabase Auth" : "API Identity"}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      Current role: {systemUser.roles.join(", ") || "user"}
-                    </Typography>
-                  </Box>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                    <Select
+                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
+                    {systemUser.roles.join(", ") || "user"}
+                  </Typography>
+                  <Select
+                    size="small"
+                    value={currentRole}
+                    aria-label={`Role for ${systemUser.userName}`}
+                    disabled={busyUserId === systemUser.id}
+                    onChange={(event) => void changeRole(systemUser, event.target.value)}
+                  >
+                    <MenuItem value="user">User</MenuItem>
+                    <MenuItem value="admin">Admin</MenuItem>
+                    <MenuItem value="superadmin">Superadmin</MenuItem>
+                  </Select>
+                  {!isSuperadmin && (
+                    <Button
                       size="small"
-                      value={currentRole}
-                      aria-label={`Role for ${systemUser.userName}`}
+                      color="error"
                       disabled={busyUserId === systemUser.id}
-                      onChange={(event) => void changeRole(systemUser, event.target.value)}
+                      onClick={() => void deleteUser(systemUser)}
                     >
-                      <MenuItem value="user">User</MenuItem>
-                      <MenuItem value="admin">Admin</MenuItem>
-                      <MenuItem value="superadmin">Superadmin</MenuItem>
-                    </Select>
-                    {!isSuperadmin && (
-                      <Button
-                        size="small"
-                        color="error"
-                        disabled={busyUserId === systemUser.id}
-                        onClick={() => void deleteUser(systemUser)}
-                      >
-                        Delete
-                      </Button>
-                    )}
-                  </Stack>
+                      Delete
+                    </Button>
+                  )}
                 </Stack>
-              </Paper>
+              </Stack>
             );
-          })}
-          {!users.length && <Typography color="text.secondary">No system users found.</Typography>}
+                })}
+              </Paper>
+            </Box>
+          ))}
+          {!filteredUsers.length && (
+            <Paper sx={{ p: 3 }}>
+              <Typography color="text.secondary">
+                {users.length ? "No users match the search." : "No system users found."}
+              </Typography>
+            </Paper>
+          )}
         </Stack>
       )}
     </Box>
