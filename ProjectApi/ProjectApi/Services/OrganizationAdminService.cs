@@ -2,20 +2,29 @@ using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using ProjectApi.Data;
+using ProjectApi.Models;
 
 namespace ProjectApi.Services;
 
 public sealed class OrganizationAdminService
 {
-    private readonly ConcurrentBag<OrganizationInvitation> _invitations = new();
-    private readonly ConcurrentQueue<AuditEntry> _auditEntries = new();
+    private readonly OrganizationInvitationStore _invitationStore;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
+    private readonly AppDbContext _context;
 
-    public OrganizationAdminService(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+    public OrganizationAdminService(
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration,
+        AppDbContext context,
+        OrganizationInvitationStore invitationStore)
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
+        _context = context;
+        _invitationStore = invitationStore;
     }
 
     public async Task<IReadOnlyList<OrganizationUser>> GetSupabaseUsersAsync()
@@ -105,7 +114,7 @@ public sealed class OrganizationAdminService
         using var response = await client.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
         EnsureSuccess(response, body);
-        AddAudit(actor, "user.role.updated", GetString(user, "email") ?? userId);
+        await AddAuditAsync(actor, "user.role.updated", GetString(user, "email") ?? userId);
     }
 
     public async Task DeleteSupabaseUserAsync(string userId, string actor, bool canManagePrivilegedUsers)
@@ -128,7 +137,7 @@ public sealed class OrganizationAdminService
         using var response = await client.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
         EnsureSuccess(response, body);
-        AddAudit(actor, "user.deleted", userId);
+        await AddAuditAsync(actor, "user.deleted", userId);
     }
 
     public async Task<OrganizationInvitation> InviteAsync(string email, string role, string invitedBy)
@@ -195,8 +204,8 @@ public sealed class OrganizationAdminService
         }
 
         var invitation = new OrganizationInvitation(Guid.NewGuid(), email, role, invitedBy, DateTimeOffset.UtcNow.AddDays(7));
-        _invitations.Add(invitation);
-        AddAudit(invitedBy, "invitation.created", email);
+        _invitationStore.Add(invitation);
+        await AddAuditAsync(invitedBy, "invitation.created", email);
         return invitation;
     }
 
@@ -300,12 +309,30 @@ public sealed class OrganizationAdminService
         return "Supabase Auth rejected the admin request.";
     }
 
-    public IReadOnlyCollection<OrganizationInvitation> GetInvitations() => _invitations.ToArray();
-    public IReadOnlyCollection<AuditEntry> GetAuditEntries() => _auditEntries.ToArray().OrderByDescending(item => item.Timestamp).ToArray();
+    public IReadOnlyCollection<OrganizationInvitation> GetInvitations() => _invitationStore.GetAll();
 
-    public void AddAudit(string actor, string action, string target) => _auditEntries.Enqueue(new AuditEntry(DateTimeOffset.UtcNow, actor, action, target));
+    public async Task AddAuditAsync(string actor, string action, string target)
+    {
+        _context.AuditLogs.Add(new AuditLog
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Actor = actor,
+            Action = action,
+            Target = target,
+            Severity = "info"
+        });
+        await _context.SaveChangesAsync();
+    }
+}
+
+public sealed class OrganizationInvitationStore
+{
+    private readonly ConcurrentBag<OrganizationInvitation> _invitations = new();
+
+    public void Add(OrganizationInvitation invitation) => _invitations.Add(invitation);
+
+    public IReadOnlyCollection<OrganizationInvitation> GetAll() => _invitations.ToArray();
 }
 
 public sealed record OrganizationUser(string Id, string UserName, string Email, IReadOnlyList<string> Roles, string Source);
 public sealed record OrganizationInvitation(Guid Id, string Email, string Role, string InvitedBy, DateTimeOffset ExpiresAt);
-public sealed record AuditEntry(DateTimeOffset Timestamp, string Actor, string Action, string Target);

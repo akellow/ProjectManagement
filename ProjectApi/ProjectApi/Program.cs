@@ -12,6 +12,7 @@ using ProjectApi.Data;
 using ProjectApi.Models;
 using ProjectApi.GraphQL;
 using ProjectApi.Services;
+using ProjectApi.Middleware;
 using HotChocolate.Data;
 using System.Text;
 
@@ -32,7 +33,9 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
 builder.Services.Configure<GzipCompressionProviderOptions>(options =>
     options.Level = CompressionLevel.Fastest);
 builder.Services.AddSingleton<EmailOtpService>();
-builder.Services.AddSingleton<OrganizationAdminService>();
+builder.Services.AddSingleton<OrganizationInvitationStore>();
+builder.Services.AddScoped<OrganizationAdminService>();
+builder.Services.AddScoped<RequestAuditMiddleware>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -280,6 +283,7 @@ else
 }
 
 app.UseAuthentication();
+app.UseMiddleware<RequestAuditMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

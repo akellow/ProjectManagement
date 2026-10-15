@@ -31,19 +31,12 @@ public class CommunicationsController : ControllerBase {
     public async Task<ActionResult<Communication>> CreateCommunication(Communication communication) {
         var employee = await _context.Employees.FindAsync(communication.EmployeeId);
         if (employee is null) return BadRequest("A valid employee recipient is required.");
+        if (!await _context.Projects.AnyAsync(project => project.ProjectId == communication.ProjectId))
+            return BadRequest("A valid project is required.");
+
         _context.Communications.Add(communication);
+        AddEmployeeNotification(employee, communication);
         await _context.SaveChangesAsync();
-        if (employee.NotificationsEnabled && !string.IsNullOrWhiteSpace(employee.UserId))
-        {
-            _context.Notifications.Add(new ProjectApi.Models.Notification
-            {
-                UserId = employee.UserId,
-                CommunicationId = communication.CommunicationId,
-                Message = $"New communication: {communication.Message}",
-                CreatedAt = DateTime.UtcNow
-            });
-            await _context.SaveChangesAsync();
-        }
         return CreatedAtAction(nameof(GetCommunication), new { id = communication.CommunicationId }, communication);
     }
 
@@ -52,7 +45,19 @@ public class CommunicationsController : ControllerBase {
     [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateCommunication(int id, Communication communication) {
         if (id != communication.CommunicationId) return BadRequest();
-        _context.Entry(communication).State = EntityState.Modified;
+        var existingCommunication = await _context.Communications.FindAsync(id);
+        if (existingCommunication is null) return NotFound();
+
+        var employee = await _context.Employees.FindAsync(communication.EmployeeId);
+        if (employee is null) return BadRequest("A valid employee recipient is required.");
+        if (!await _context.Projects.AnyAsync(project => project.ProjectId == communication.ProjectId))
+            return BadRequest("A valid project is required.");
+
+        existingCommunication.ProjectId = communication.ProjectId;
+        existingCommunication.EmployeeId = communication.EmployeeId;
+        existingCommunication.Message = communication.Message;
+        existingCommunication.Date = communication.Date;
+        AddEmployeeNotification(employee, existingCommunication);
         await _context.SaveChangesAsync();
         return NoContent();
     }
@@ -66,5 +71,19 @@ public class CommunicationsController : ControllerBase {
         _context.Communications.Remove(communication);
         await _context.SaveChangesAsync();
         return Ok(communication);
+    }
+
+    private void AddEmployeeNotification(Employee employee, Communication communication)
+    {
+        if (!employee.NotificationsEnabled || string.IsNullOrWhiteSpace(employee.UserId))
+            return;
+
+        _context.Notifications.Add(new ProjectApi.Models.Notification
+        {
+            UserId = employee.UserId,
+            Communication = communication,
+            Message = $"Communication from your project team: {communication.Message}",
+            CreatedAt = DateTime.UtcNow
+        });
     }
 }

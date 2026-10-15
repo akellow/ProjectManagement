@@ -247,6 +247,46 @@ namespace ProjectApi.Migrations
                     b.ToTable("Assignments");
                 });
 
+            modelBuilder.Entity("ProjectApi.Models.AuditLog", b =>
+                {
+                    b.Property<long>("AuditLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("AuditLogId"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Endpoint")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("StatusCode")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("AuditLogId");
+
+                    b.HasIndex("Timestamp");
+
+                    b.ToTable("AuditLogs");
+                });
+
             modelBuilder.Entity("ProjectApi.Models.Communication", b =>
                 {
                     b.Property<int>("CommunicationId")
@@ -297,12 +337,12 @@ namespace ProjectApi.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("NotificationsEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<bool>("NotificationsEnabled")
-                        .HasColumnType("boolean");
 
                     b.Property<string>("UserId")
                         .HasColumnType("text");

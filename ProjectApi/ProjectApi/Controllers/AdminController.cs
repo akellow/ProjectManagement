@@ -77,7 +77,7 @@ public class AdminController : ControllerBase
         if (!roleResult.Succeeded) return BadRequest(roleResult.Errors);
         _context.Employees.Add(new Employee { Name = user.UserName ?? dto.Username, Role = dto.Role, ContactInfo = user.Email ?? dto.Email, UserId = user.Id });
         await _context.SaveChangesAsync();
-        _organizationAdminService.AddAudit(User.Identity?.Name ?? "admin", "user.created", user.UserName ?? dto.Username);
+        await _organizationAdminService.AddAuditAsync(User.Identity?.Name ?? "admin", "user.created", user.UserName ?? dto.Username);
         if (HasTrustedSuperAdminRole() && dto.Username.Equals("superadmin", StringComparison.OrdinalIgnoreCase)) await _emailOtpService.SendAsync(user);
         return Ok(new { user.Id, user.UserName, user.Email, Role = dto.Role.ToLowerInvariant() });
     }
@@ -157,7 +157,7 @@ public class AdminController : ControllerBase
             });
         }
         await _context.SaveChangesAsync();
-        _organizationAdminService.AddAudit(User.Identity?.Name ?? "admin", "user.role.updated", user.UserName ?? id);
+        await _organizationAdminService.AddAuditAsync(User.Identity?.Name ?? "admin", "user.role.updated", user.UserName ?? id);
         return Ok(new { user.Id, user.UserName, Role = dto.Role.ToLowerInvariant() });
     }
 
@@ -225,7 +225,7 @@ public class AdminController : ControllerBase
 
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
-        _organizationAdminService.AddAudit(User.Identity?.Name ?? "admin", "user.deleted", user.UserName ?? id);
+        await _organizationAdminService.AddAuditAsync(User.Identity?.Name ?? "admin", "user.deleted", user.UserName ?? id);
         return NoContent();
     }
 
@@ -262,10 +262,38 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("audit")]
-    public IActionResult GetAudit()
+    public async Task<IActionResult> GetAudit(
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        [FromQuery] string? search,
+        [FromQuery] string? severity,
+        [FromQuery] int? statusCode,
+        [FromQuery] string? endpoint)
     {
         if (!HasTrustedAdminRole()) return Forbid();
-        return Ok(_organizationAdminService.GetAuditEntries());
+        var query = _context.AuditLogs.AsNoTracking();
+        if (from.HasValue) query = query.Where(entry => entry.Timestamp >= from.Value);
+        if (to.HasValue) query = query.Where(entry => entry.Timestamp <= to.Value);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(entry =>
+                entry.Actor.Contains(term)
+                || entry.Action.Contains(term)
+                || entry.Target.Contains(term)
+                || (entry.Endpoint != null && entry.Endpoint.Contains(term)));
+        }
+        if (!string.IsNullOrWhiteSpace(severity))
+            query = query.Where(entry => entry.Severity == severity.ToLowerInvariant());
+        if (statusCode.HasValue)
+            query = query.Where(entry => entry.StatusCode == statusCode.Value);
+        if (!string.IsNullOrWhiteSpace(endpoint))
+            query = query.Where(entry => entry.Endpoint == endpoint);
+
+        return Ok(await query
+            .OrderByDescending(entry => entry.Timestamp)
+            .Take(2000)
+            .ToListAsync());
     }
 
     [HttpGet("account")]
