@@ -4,6 +4,8 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { formatEATDate, getEATDate } from "../utils/dateTime";
+import { useAuth } from "../context/AuthContext";
+import { getDashboardUserName } from "../utils/profile";
 
 type Project = {
     projectId: number;
@@ -44,6 +46,7 @@ type PanelItem = {
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
     const [tasks, setTasks] = useState<ProjectTask[]>([]);
     const [risks, setRisks] = useState<Risk[]>([]);
@@ -149,7 +152,7 @@ export default function Dashboard() {
         <Box sx={{ maxWidth: 1200, mx: "auto" }}>
             <Box sx={{ mb: 4 }}>
                 <Box>
-                    <Typography variant="h3" component="h1">Your dashboard</Typography>
+                    <Typography variant="h3" component="h1">{getDashboardUserName(user)}'s Dashboard</Typography>
                 </Box>
             </Box>
 

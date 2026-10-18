@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Alert, Badge, Box, Button, Divider, IconButton, Menu, MenuItem, Popover, Snackbar, Stack, Tooltip, Typography } from "@mui/material";
+import { Alert, Avatar, Badge, Box, Button, Divider, IconButton, Menu, MenuItem, Popover, Snackbar, Stack, Tooltip, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import api from "../services/api";
+import { getProfilePictureUrl } from "../utils/profile";
 
 type Notification = { notificationId: number; senderName: string; message: string; createdAt: string; isRead: boolean };
 
@@ -66,6 +67,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     ?? user?.email
     ?? "Account";
   const initials = displayName.trim().charAt(0).toUpperCase() || "A";
+  const profilePictureUrl = getProfilePictureUrl(user);
 
   return (
     <Box className="app-layout">
@@ -91,7 +93,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 onClick={(event) => setProfileAnchor(event.currentTarget)}
                 className="profile-trigger"
               >
-                <span className="profile-avatar">{initials}</span>
+                <Avatar src={profilePictureUrl} alt="" className="profile-avatar">{initials}</Avatar>
                 <span className="profile-name">{displayName}</span>
                 <ChevronIcon />
               </IconButton>
@@ -158,7 +160,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           slotProps={{ paper: { className: "topbar-menu profile-menu" } }}
         >
           <Box className="profile-menu-identity">
-            <span className="profile-avatar">{initials}</span>
+            <Avatar src={profilePictureUrl} alt="" className="profile-avatar">{initials}</Avatar>
             <Box sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 700 }} noWrap>{displayName}</Typography>
               <Typography variant="body2" color="text.secondary" noWrap>{user?.email}</Typography>

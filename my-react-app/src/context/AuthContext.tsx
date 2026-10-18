@@ -66,6 +66,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return data;
   };
 
+  const updateProfilePicture = async (file: File) => {
+    if (!user?.id) throw new Error('You must be signed in to update your profile picture.');
+
+    const extensionByType: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+    };
+    const extension = extensionByType[file.type];
+    if (!extension) throw new Error('Choose a JPG, PNG, or WebP image.');
+    if (file.size > 5 * 1024 * 1024) throw new Error('The profile picture must be 5 MB or smaller.');
+
+    const path = `${user.id}/${crypto.randomUUID()}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { cacheControl: '3600', contentType: file.type, upsert: true });
+    if (uploadError) throw new Error(`Unable to upload your profile picture: ${uploadError.message}`);
+
+    const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(path);
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        ...user.user_metadata,
+        avatar_url: publicUrlData.publicUrl,
+      },
+    });
+    if (error) {
+      const { error: cleanupError } = await supabase.storage.from('avatars').remove([path]);
+      const cleanupMessage = cleanupError ? ` The uploaded image could not be cleaned up: ${cleanupError.message}` : '';
+      throw new Error(`The image uploaded, but your profile could not be updated: ${error.message}.${cleanupMessage}`);
+    }
+
+    setUser(data.user);
+  };
+
   const requestPasswordReset = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
@@ -89,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthLoading, signUp, signIn, signInWithGoogle, requestPasswordReset, updatePassword, syncEmployee, signOut }}>
+    <AuthContext.Provider value={{ user, isAuthLoading, signUp, signIn, signInWithGoogle, requestPasswordReset, updatePassword, updateProfilePicture, syncEmployee, signOut }}>
       {children}
     </AuthContext.Provider>
   );

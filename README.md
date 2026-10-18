@@ -40,6 +40,35 @@ Users can select **Forgot your password?** on the sign-in page, request a reset 
 
 New sign-ups are standard users. Authenticated workspace members can read shared project data and use their own account settings and notifications; project changes, employee administration, and organization administration remain restricted to admins or superadmins.
 
+### Profile pictures
+
+Google sign-ins display the Google profile picture when Supabase provides one. Users can upload a JPG, PNG, or WebP profile picture (up to 5 MB) from **Settings**. Uploaded pictures are stored in the public Supabase Storage bucket named `avatars`; public bucket access is required because the app displays the image outside an authenticated storage request. Configure the bucket and policies in the Supabase SQL editor:
+
+```sql
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Avatar images are publicly readable" on storage.objects;
+drop policy if exists "Users can upload their own avatar" on storage.objects;
+drop policy if exists "Users can delete their own avatar" on storage.objects;
+
+create policy "Avatar images are publicly readable"
+on storage.objects for select to public
+using (bucket_id = 'avatars');
+
+create policy "Users can upload their own avatar"
+on storage.objects for insert to authenticated
+with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "Users can delete their own avatar"
+on storage.objects for delete to authenticated
+using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+```
+
 ### System audit logs
 
 The superadmin System Logs page stores administrative audit events and API request outcomes in the API PostgreSQL database. It supports search, severity/status/endpoint filters, preset or custom time ranges, activity charts, and automatic refresh every 15 seconds. Request logs contain the HTTP method, normalized API path, status, actor, and timestamp; request bodies and query strings are not recorded. The `AddPersistentAuditLogs` migration is applied by the API's normal startup migration step.

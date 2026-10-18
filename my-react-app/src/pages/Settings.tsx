@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -21,6 +22,7 @@ import { useSettings } from "../context/SettingsContext";
 import type { DateFormat, ThemeMode, UserPreferences, WeekStart } from "../context/SettingsContext";
 import api from "../services/api";
 import { supabase } from "../services/supabaseClient";
+import { getProfilePictureUrl } from "../utils/profile";
 
 type SettingsGroupProps = {
   title: string;
@@ -40,7 +42,7 @@ function SettingsGroup({ title, description, id, children }: SettingsGroupProps)
 }
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, updateProfilePicture } = useAuth();
   const { preferences, saveSettings } = useSettings();
   const [displayName, setDisplayName] = useState("");
   const [draftPreferences, setDraftPreferences] = useState<UserPreferences>(preferences);
@@ -57,6 +59,9 @@ export default function Settings() {
   const [securityError, setSecurityError] = useState("");
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+  const [isUploadingPicture, setIsUploadingPicture] = useState(false);
+  const [pictureError, setPictureError] = useState("");
+  const [pictureMessage, setPictureMessage] = useState("");
 
   useEffect(() => {
     setDraftPreferences(preferences);
@@ -163,6 +168,26 @@ export default function Settings() {
     }
   }
 
+  async function uploadProfilePicture(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setIsUploadingPicture(true);
+    setPictureError("");
+    setPictureMessage("");
+    try {
+      await updateProfilePicture(file);
+      setPictureMessage("Your profile picture has been updated.");
+    } catch (error: unknown) {
+      setPictureError(error instanceof Error ? error.message : "Unable to upload your profile picture.");
+    } finally {
+      setIsUploadingPicture(false);
+    }
+  }
+
+  const profilePictureUrl = getProfilePictureUrl(user);
+
   return (
     <Box sx={{ maxWidth: 900, mx: "auto" }}>
       <Typography variant="overline" color="primary">Preferences</Typography>
@@ -172,6 +197,20 @@ export default function Settings() {
       </Typography>
 
       <Stack spacing={2}>
+        <SettingsGroup title="Profile picture" description="Upload a JPG, PNG, or WebP image up to 5 MB. Google sign-ins use your Google profile photo unless you upload a different picture.">
+          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+            <Avatar src={profilePictureUrl} alt="Profile picture" sx={{ width: 72, height: 72 }}>
+              {(displayName || user?.email || "A").trim().charAt(0).toUpperCase()}
+            </Avatar>
+            <Button component="label" variant="outlined" disabled={isUploadingPicture}>
+              {isUploadingPicture ? "Uploading..." : "Upload profile picture"}
+              <input hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void uploadProfilePicture(event)} />
+            </Button>
+          </Stack>
+          {pictureError && <Alert severity="error" sx={{ mt: 2 }}>{pictureError}</Alert>}
+          {pictureMessage && <Alert severity="success" sx={{ mt: 2 }}>{pictureMessage}</Alert>}
+        </SettingsGroup>
+
         <SettingsGroup title="Theme" description="Choose how Project Management looks on this device.">
           <FormControl fullWidth>
             <InputLabel id="theme-mode-label">Appearance</InputLabel>
