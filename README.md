@@ -77,6 +77,10 @@ The superadmin System Logs page stores administrative audit events and API reque
 
 Administrators can open Trash from the account menu. Projects, tasks, employees, milestones, risks, resources, communications, and assignments are soft-deleted and can be restored for 30 days. Deleting a project or task also moves its related records as a group; restoring it restores those records together. Expired records are permanently removed by the API's background cleanup service. The `AddTrashRecovery` migration is applied by the API's normal startup migration step.
 
+### Task collaboration and attachments
+
+Tasks on the dashboard Kanban board open a collaboration panel with comments, a completion checklist, and downloadable attachments. Attachments are stored by the API under `ProjectApi/ProjectApi/App_Data/task-attachments` by default; configure `TaskAttachments:StoragePath` (or `TaskAttachments__StoragePath`) to use a different directory. The API accepts PDF, PNG/JPEG/GIF/WebP, TXT/CSV, DOCX, XLSX, and PPTX files up to 10 MB each. Keep this directory on persistent storage and include it in backups when deploying the API; ephemeral container filesystems will lose attachments on redeploy. Deleting a task or project keeps its attachments available during the 30-day Trash restore period, then purges them.
+
 ### AI reports
 
 The superadmin dashboard can generate portfolio, task/schedule, risk, and resource reports using the Gemini API. Configure `Gemini:ApiKey` as a .NET user secret or set the `Gemini__ApiKey` environment variable on the API host. Optionally set `Gemini:Model` / `Gemini__Model`; the default is `gemini-3.8-flash`. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/).

@@ -25,6 +25,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<AiReportService>();
 builder.Services.AddHostedService<OverdueStatusService>();
 builder.Services.AddScoped<TrashService>();
+builder.Services.AddSingleton<TaskAttachmentStorage>();
 builder.Services.AddHostedService<TrashCleanupService>();
 builder.Services.AddResponseCompression(options =>
 {

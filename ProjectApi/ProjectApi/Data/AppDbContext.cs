@@ -14,6 +14,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser> {
         modelBuilder.Entity<AuditLog>().HasIndex(log => log.Timestamp);
         modelBuilder.Entity<Notification>().HasIndex(notification => notification.UserId);
         modelBuilder.Entity<TrashEntry>().HasIndex(entry => entry.DeletionGroupId);
+        modelBuilder.Entity<TaskComment>().HasOne<ProjectTask>().WithMany().HasForeignKey(comment => comment.TaskId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<TaskSubtask>().HasOne<ProjectTask>().WithMany().HasForeignKey(subtask => subtask.TaskId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<TaskAttachment>().HasOne<ProjectTask>().WithMany().HasForeignKey(attachment => attachment.TaskId).OnDelete(DeleteBehavior.Cascade);
 
         var configureFilter = typeof(AppDbContext).GetMethod(nameof(ConfigureSoftDeleteFilter), BindingFlags.NonPublic | BindingFlags.Static)
             ?? throw new InvalidOperationException("Unable to configure soft-delete query filters.");
@@ -37,5 +40,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser> {
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<TrashEntry> TrashEntries { get; set; }
+    public DbSet<TaskComment> TaskComments { get; set; }
+    public DbSet<TaskSubtask> TaskSubtasks { get; set; }
+    public DbSet<TaskAttachment> TaskAttachments { get; set; }
 
 }

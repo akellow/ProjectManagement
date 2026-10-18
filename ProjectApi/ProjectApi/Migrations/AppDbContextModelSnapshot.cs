@@ -659,6 +659,97 @@ namespace ProjectApi.Migrations
                     b.ToTable("Risks");
                 });
 
+            modelBuilder.Entity("ProjectApi.Models.TaskAttachment", b =>
+                {
+                    b.Property<int>("TaskAttachmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TaskAttachmentId"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletionGroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StorageName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UploadedByUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("TaskAttachmentId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskAttachments");
+                });
+
+            modelBuilder.Entity("ProjectApi.Models.TaskComment", b =>
+                {
+                    b.Property<int>("TaskCommentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TaskCommentId"));
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AuthorUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletionGroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("TaskCommentId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskComments");
+                });
+
             modelBuilder.Entity("ProjectApi.Models.TaskResource", b =>
                 {
                     b.Property<int>("TaskResourceId")
@@ -692,6 +783,43 @@ namespace ProjectApi.Migrations
                     b.HasIndex("TaskId");
 
                     b.ToTable("TaskResources");
+                });
+
+            modelBuilder.Entity("ProjectApi.Models.TaskSubtask", b =>
+                {
+                    b.Property<int>("TaskSubtaskId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TaskSubtaskId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletionGroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("TaskSubtaskId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskSubtasks");
                 });
 
             modelBuilder.Entity("ProjectApi.Models.TrashEntry", b =>
@@ -888,6 +1016,24 @@ namespace ProjectApi.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("ProjectApi.Models.TaskAttachment", b =>
+                {
+                    b.HasOne("ProjectApi.Models.ProjectTask", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProjectApi.Models.TaskComment", b =>
+                {
+                    b.HasOne("ProjectApi.Models.ProjectTask", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ProjectApi.Models.TaskResource", b =>
                 {
                     b.HasOne("ProjectApi.Models.Resource", "Resource")
@@ -905,6 +1051,15 @@ namespace ProjectApi.Migrations
                     b.Navigation("Resource");
 
                     b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("ProjectApi.Models.TaskSubtask", b =>
+                {
+                    b.HasOne("ProjectApi.Models.ProjectTask", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ProjectApi.Models.Communication", b =>

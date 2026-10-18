@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, IconButton, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Alert, Avatar, Box, Button, Checkbox, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, Divider, IconButton, LinearProgress, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
@@ -37,6 +37,34 @@ type Assignment = {
     employeeId: number;
     hoursAllocated: number;
 };
+
+type TaskComment = {
+    taskCommentId: number;
+    authorName: string;
+    content: string;
+    createdAt: string;
+};
+
+type TaskSubtask = {
+    taskSubtaskId: number;
+    title: string;
+    isCompleted: boolean;
+};
+
+type TaskAttachment = {
+    taskAttachmentId: number;
+    fileName: string;
+    size: number;
+    uploadedAt: string;
+};
+
+type TaskCollaboration = {
+    comments: TaskComment[];
+    subtasks: TaskSubtask[];
+    attachments: TaskAttachment[];
+};
+
+type TaskDetailSection = "comments" | "subtasks" | "attachments";
 
 type Risk = {
     riskId: number;
@@ -76,6 +104,13 @@ export default function Dashboard() {
     const [error, setError] = useState("");
     const [activePanel, setActivePanel] = useState<DashboardPanel | null>(null);
     const [workView, setWorkView] = useState<WorkView>("kanban");
+    const [openTaskId, setOpenTaskId] = useState<number | null>(null);
+    const [taskCollaboration, setTaskCollaboration] = useState<TaskCollaboration>({ comments: [], subtasks: [], attachments: [] });
+    const [taskDetailSection, setTaskDetailSection] = useState<TaskDetailSection>("comments");
+    const [commentDraft, setCommentDraft] = useState("");
+    const [subtaskDraft, setSubtaskDraft] = useState("");
+    const [collaborationError, setCollaborationError] = useState("");
+    const [isSavingCollaboration, setIsSavingCollaboration] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
@@ -187,6 +222,98 @@ export default function Dashboard() {
     const timelineDays = Math.max(1, calendarDaysBetween(timelineStart, timelineEnd) + 1);
     const timelineWidth = Math.max(900, timelineDays * 22);
     const timelineHeaders = Array.from({ length: timelineDays }, (_, index) => addCalendarDays(timelineStart, index));
+    const openTask = tasks.find((task) => task.projectTaskId === openTaskId) ?? null;
+    const openTaskProject = openTask ? projects.find((project) => project.projectId === openTask.projectId) : undefined;
+    const completedSubtasks = taskCollaboration.subtasks.filter((subtask) => subtask.isCompleted).length;
+
+    useEffect(() => {
+        if (openTaskId === null) return;
+        let active = true;
+        api.get<TaskCollaboration>(`/ProjectTasks/${openTaskId}/collaboration`)
+            .then((response) => { if (active) setTaskCollaboration(response.data); })
+            .catch((loadError: unknown) => {
+                if (active) setCollaborationError(getCollaborationError(loadError, "Unable to load this task’s details."));
+            });
+        return () => { active = false; };
+    }, [openTaskId]);
+
+    async function reloadTaskCollaboration(taskId: number) {
+        const response = await api.get<TaskCollaboration>(`/ProjectTasks/${taskId}/collaboration`);
+        setTaskCollaboration(response.data);
+    }
+
+    async function addTaskComment() {
+        if (!openTaskId || !commentDraft.trim()) return;
+        setIsSavingCollaboration(true);
+        setCollaborationError("");
+        try {
+            await api.post(`/ProjectTasks/${openTaskId}/collaboration/comments`, { content: commentDraft.trim() });
+            setCommentDraft("");
+            await reloadTaskCollaboration(openTaskId);
+        } catch (saveError: unknown) {
+            setCollaborationError(getCollaborationError(saveError, "Unable to add your comment."));
+        } finally {
+            setIsSavingCollaboration(false);
+        }
+    }
+
+    async function addTaskSubtask() {
+        if (!openTaskId || !subtaskDraft.trim()) return;
+        setIsSavingCollaboration(true);
+        setCollaborationError("");
+        try {
+            await api.post(`/ProjectTasks/${openTaskId}/collaboration/subtasks`, { title: subtaskDraft.trim() });
+            setSubtaskDraft("");
+            await reloadTaskCollaboration(openTaskId);
+        } catch (saveError: unknown) {
+            setCollaborationError(getCollaborationError(saveError, "Unable to add this subtask."));
+        } finally {
+            setIsSavingCollaboration(false);
+        }
+    }
+
+    async function toggleSubtask(subtask: TaskSubtask) {
+        if (!openTaskId) return;
+        setCollaborationError("");
+        try {
+            await api.put(`/ProjectTasks/${openTaskId}/collaboration/subtasks/${subtask.taskSubtaskId}`, { isCompleted: !subtask.isCompleted });
+            await reloadTaskCollaboration(openTaskId);
+        } catch (saveError: unknown) {
+            setCollaborationError(getCollaborationError(saveError, "Unable to update this subtask."));
+        }
+    }
+
+    async function uploadTaskAttachment(file?: File) {
+        if (!openTaskId || !file) return;
+        const body = new FormData();
+        body.append("file", file);
+        setIsSavingCollaboration(true);
+        setCollaborationError("");
+        try {
+            await api.post(`/ProjectTasks/${openTaskId}/collaboration/attachments`, body, { headers: { "Content-Type": "multipart/form-data" } });
+            await reloadTaskCollaboration(openTaskId);
+        } catch (uploadError: unknown) {
+            setCollaborationError(getCollaborationError(uploadError, "Unable to upload this attachment."));
+        } finally {
+            setIsSavingCollaboration(false);
+        }
+    }
+
+    async function downloadTaskAttachment(attachment: TaskAttachment) {
+        if (!openTaskId) return;
+        setCollaborationError("");
+        try {
+            const response = await api.get<Blob>(`/ProjectTasks/${openTaskId}/collaboration/attachments/${attachment.taskAttachmentId}`, { responseType: "blob" });
+            const url = URL.createObjectURL(response.data);
+            const downloadLink = document.createElement("a");
+            downloadLink.href = url;
+            downloadLink.download = attachment.fileName;
+            downloadLink.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (downloadError: unknown) {
+            setCollaborationError(getCollaborationError(downloadError, "Unable to download this attachment."));
+        }
+    }
     const panelItems: Record<DashboardPanel, PanelItem[]> = {
         projects: projects.map((project) => ({
             id: `project-${project.projectId}`,
@@ -292,13 +419,7 @@ export default function Dashboard() {
                                                     const assigneeNames = taskAssignments.map((assignment) =>
                                                         employees.find((employee) => employee.employeeId === assignment.employeeId)?.name ?? `Employee ${assignment.employeeId}`);
                                                     return (
-                                                        <Paper
-                                                            key={task.projectTaskId}
-                                                            component="button"
-                                                            type="button"
-                                                            onClick={() => navigate("/tasks")}
-                                                            sx={{ textAlign: "left", color: "inherit", p: 1.5, cursor: "pointer", "&:hover": { borderColor: "primary.main" } }}
-                                                        >
+                                                        <Paper key={task.projectTaskId} variant="outlined" sx={{ p: 1.5, "&:hover": { borderColor: "primary.main" } }}>
                                                             <Typography sx={{ fontWeight: 600 }}>{task.title}</Typography>
                                                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                                                 {projects.find((project) => project.projectId === task.projectId)?.name ?? "Project"}
@@ -308,6 +429,17 @@ export default function Dashboard() {
                                                                 <Chip size="small" variant="outlined" label={hasDeadline(task.endDate) ? `Due ${formatEATDate(task.endDate)}` : "No deadline"} />
                                                                 {assigneeNames.map((name) => <Chip key={name} size="small" label={name} />)}
                                                                 {taskAssignments.length > 0 && <Chip size="small" variant="outlined" label={`${formatAllocatedHours(taskAssignments.reduce((total, assignment) => total + assignment.hoursAllocated, 0))} allocated`} />}
+                                                            </Stack>
+                                                            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                                                                <Button size="small" onClick={() => navigate("/tasks")}>Open task</Button>
+                                                                <Button size="small" variant="contained" onClick={() => {
+                                                                    setTaskCollaboration({ comments: [], subtasks: [], attachments: [] });
+                                                                    setCollaborationError("");
+                                                                    setCommentDraft("");
+                                                                    setSubtaskDraft("");
+                                                                    setOpenTaskId(task.projectTaskId);
+                                                                    setTaskDetailSection("comments");
+                                                                }}>Collaboration</Button>
                                                             </Stack>
                                                         </Paper>
                                                     );
@@ -435,6 +567,146 @@ export default function Dashboard() {
                     </Stack>
                 </DialogContent>
             </Dialog>
+            <Dialog open={openTaskId !== null} onClose={() => setOpenTaskId(null)} fullWidth maxWidth="md" aria-labelledby="task-collaboration-title">
+                <DialogTitle id="task-collaboration-title" sx={{ pb: 1 }}>
+                    <Stack direction="row" sx={{ alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+                        <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="h5" component="div" noWrap>{openTask?.title ?? "Task details"}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {openTaskProject?.name ?? "Project"} · {openTask && hasDeadline(openTask.endDate) ? `Due ${formatEATDate(openTask.endDate)}` : "No deadline"}
+                            </Typography>
+                        </Box>
+                        <IconButton aria-label="Close task details" onClick={() => setOpenTaskId(null)}>×</IconButton>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent dividers sx={{ bgcolor: "background.default" }}>
+                    {collaborationError && <Alert severity="error" sx={{ mb: 2 }}>{collaborationError}</Alert>}
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 1.25, mb: 2 }}>
+                        {[
+                            { label: "Comments", value: taskCollaboration.comments.length, color: "primary.main" },
+                            { label: "Checklist", value: `${completedSubtasks}/${taskCollaboration.subtasks.length}`, color: "success.main" },
+                            { label: "Files", value: taskCollaboration.attachments.length, color: "secondary.main" },
+                        ].map((item) => (
+                            <Paper key={item.label} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                                <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                                <Typography variant="h6" sx={{ color: item.color, fontWeight: 700 }}>{item.value}</Typography>
+                            </Paper>
+                        ))}
+                    </Box>
+                    <ToggleButtonGroup
+                        value={taskDetailSection}
+                        exclusive
+                        fullWidth
+                        size="small"
+                        aria-label="Task detail section"
+                        onChange={(_, value: TaskDetailSection | null) => { if (value) setTaskDetailSection(value); }}
+                        sx={{ mb: 2, "& .MuiToggleButton-root": { textTransform: "none", fontWeight: 600 } }}
+                    >
+                        <ToggleButton value="comments">Comments</ToggleButton>
+                        <ToggleButton value="subtasks">Subtasks</ToggleButton>
+                        <ToggleButton value="attachments">Attachments</ToggleButton>
+                    </ToggleButtonGroup>
+
+                    {isSavingCollaboration && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
+                    {taskDetailSection === "comments" && (
+                        <Stack spacing={1.5}>
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    minRows={2}
+                                    maxRows={5}
+                                    label="Write a comment"
+                                    value={commentDraft}
+                                    onChange={(event) => setCommentDraft(event.target.value)}
+                                    slotProps={{ htmlInput: { maxLength: 5000 } }}
+                                    helperText={`${commentDraft.length}/5000`}
+                                />
+                                <Stack direction="row" sx={{ justifyContent: "flex-end", mt: 1 }}>
+                                    <Button variant="contained" onClick={() => void addTaskComment()} disabled={isSavingCollaboration || !commentDraft.trim()}>Post comment</Button>
+                                </Stack>
+                            </Paper>
+                            {taskCollaboration.comments.map((comment) => (
+                                <Paper key={comment.taskCommentId} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                                    <Stack direction="row" spacing={1.25} sx={{ alignItems: "flex-start" }}>
+                                        <Avatar sx={{ width: 34, height: 34, bgcolor: "primary.light", color: "primary.dark", fontSize: 14 }}>
+                                            {comment.authorName.trim().charAt(0).toUpperCase() || "T"}
+                                        </Avatar>
+                                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                                            <Stack direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", gap: 0.5 }}>
+                                                <Typography variant="subtitle2">{comment.authorName}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{formatEATDate(comment.createdAt)}</Typography>
+                                            </Stack>
+                                            <Typography sx={{ mt: 0.5, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{comment.content}</Typography>
+                                        </Box>
+                                    </Stack>
+                                </Paper>
+                            ))}
+                            {!taskCollaboration.comments.length && <Typography color="text.secondary" sx={{ py: 2, textAlign: "center" }}>No comments yet. Start the conversation.</Typography>}
+                        </Stack>
+                    )}
+
+                    {taskDetailSection === "subtasks" && (
+                        <Stack spacing={1.5}>
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                                    <TextField fullWidth size="small" label="Add a checklist item" value={subtaskDraft} onChange={(event) => setSubtaskDraft(event.target.value)} slotProps={{ htmlInput: { maxLength: 300 } }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addTaskSubtask(); } }} />
+                                    <Button variant="contained" onClick={() => void addTaskSubtask()} disabled={isSavingCollaboration || !subtaskDraft.trim()} sx={{ flexShrink: 0 }}>Add item</Button>
+                                </Stack>
+                                {taskCollaboration.subtasks.length > 0 && (
+                                    <Box sx={{ mt: 2 }}>
+                                        <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.75 }}>
+                                            <Typography variant="body2" color="text.secondary">Progress</Typography>
+                                            <Typography variant="body2" color="text.secondary">{completedSubtasks} of {taskCollaboration.subtasks.length}</Typography>
+                                        </Stack>
+                                        <LinearProgress variant="determinate" value={completedSubtasks / taskCollaboration.subtasks.length * 100} sx={{ height: 7, borderRadius: 5 }} />
+                                    </Box>
+                                )}
+                            </Paper>
+                            <Paper variant="outlined" sx={{ p: 1, borderRadius: 2 }}>
+                                {taskCollaboration.subtasks.map((subtask, index) => (
+                                    <Box key={subtask.taskSubtaskId}>
+                                        {index > 0 && <Divider />}
+                                        <Stack direction="row" sx={{ alignItems: "center", minHeight: 48, px: 0.5 }}>
+                                            <Checkbox checked={subtask.isCompleted} onChange={() => void toggleSubtask(subtask)} slotProps={{ input: { "aria-label": `Mark ${subtask.title} ${subtask.isCompleted ? "incomplete" : "complete"}` } }} />
+                                            <Typography sx={{ textDecoration: subtask.isCompleted ? "line-through" : "none", color: subtask.isCompleted ? "text.secondary" : "text.primary" }}>{subtask.title}</Typography>
+                                        </Stack>
+                                    </Box>
+                                ))}
+                                {!taskCollaboration.subtasks.length && <Typography color="text.secondary" sx={{ p: 2, textAlign: "center" }}>Break this task into a few manageable steps.</Typography>}
+                            </Paper>
+                        </Stack>
+                    )}
+
+                    {taskDetailSection === "attachments" && (
+                        <Stack spacing={1.5}>
+                            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, textAlign: "center", borderStyle: "dashed" }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Keep task files together</Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>PDFs, images, Office documents, TXT and CSV · up to 10 MB each</Typography>
+                                <Button component="label" variant="contained" disabled={isSavingCollaboration}>
+                                    Upload a file
+                                    <input hidden type="file" onChange={(event) => { void uploadTaskAttachment(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+                                </Button>
+                            </Paper>
+                            <Paper variant="outlined" sx={{ p: 1, borderRadius: 2 }}>
+                                {taskCollaboration.attachments.map((attachment, index) => (
+                                    <Box key={attachment.taskAttachmentId}>
+                                        {index > 0 && <Divider />}
+                                        <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", gap: 1, p: 1 }}>
+                                            <Box sx={{ minWidth: 0 }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>{attachment.fileName}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{formatFileSize(attachment.size)} · {formatEATDate(attachment.uploadedAt)}</Typography>
+                                            </Box>
+                                            <Button size="small" onClick={() => void downloadTaskAttachment(attachment)}>Download</Button>
+                                        </Stack>
+                                    </Box>
+                                ))}
+                                {!taskCollaboration.attachments.length && <Typography color="text.secondary" sx={{ p: 2, textAlign: "center" }}>No files attached yet.</Typography>}
+                            </Paper>
+                        </Stack>
+                    )}
+                </DialogContent>
+            </Dialog>
         </Box>
     );
 }
@@ -443,6 +715,25 @@ function deadlineStatus(status: string, dueDate: string, today: string) {
     if (status.toLowerCase() === "completed") return "Completed";
     if (status.toLowerCase() === "overdue" || (hasDeadline(dueDate) && getEATDate(dueDate) < today)) return "Overdue";
     return status;
+}
+
+function getCollaborationError(error: unknown, fallback: string) {
+    if (axios.isAxiosError(error)) {
+        const responseData: unknown = error.response?.data;
+        if (typeof responseData === "string" && responseData.trim()) return responseData;
+        if (responseData && typeof responseData === "object" && "message" in responseData && typeof responseData.message === "string")
+            return responseData.message;
+        if (responseData && typeof responseData === "object" && "title" in responseData && typeof responseData.title === "string")
+            return responseData.title;
+        if (error.response?.status) return `${fallback} (HTTP ${error.response.status}).`;
+    }
+    return fallback;
+}
+
+function formatFileSize(size: number) {
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function hasDeadline(value: string | null | undefined) {
