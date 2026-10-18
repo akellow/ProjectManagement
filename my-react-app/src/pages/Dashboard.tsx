@@ -100,6 +100,7 @@ export default function Dashboard() {
         ...milestones.map((milestone) => ({ id: `milestone-${milestone.milestoneId}`, name: milestone.name, type: "Milestone", dueDate: milestone.dueDate, status: milestone.status, path: "/milestones" })),
     ].filter((item) => item.dueDate && !Number.isNaN(new Date(item.dueDate).getTime()))
         .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime());
+    const visibleDeadlines = deadlines.filter((item) => !(item.type === "Task" && item.status.toLowerCase() === "completed"));
     const overdueDeadlines = deadlines.filter((item) => item.status.toLowerCase() !== "completed" && getEATDate(item.dueDate) < today);
     const upcomingDeadlines = deadlines.filter((item) => {
         const deadlineDate = getEATDate(item.dueDate);
@@ -120,7 +121,7 @@ export default function Dashboard() {
             status: deadlineStatus(task.status, task.endDate, today),
             path: "/tasks",
         })),
-        deadlines: deadlines.map((item) => ({
+        deadlines: visibleDeadlines.map((item) => ({
             id: item.id,
             name: item.name,
             description: `${item.type} · Due ${formatEATDate(item.dueDate)}`,
@@ -182,7 +183,7 @@ export default function Dashboard() {
                                 <Typography variant="h6">Deadlines</Typography>
                                 <Button size="small" onClick={() => navigate("/projects")}>View projects</Button>
                             </Stack>
-                            {deadlines.map((item) => {
+                            {visibleDeadlines.map((item) => {
                                 const status = deadlineStatus(item.status, item.dueDate, today);
                                 return (
                                 <Stack key={item.id} component="button" type="button" direction="row" onClick={() => navigate(item.path)} sx={{ width: "100%", justifyContent: "space-between", alignItems: "center", gap: 1, py: 1.25, border: 0, borderBottom: "1px solid", borderColor: "divider", color: "inherit", background: "transparent", textAlign: "left", cursor: "pointer" }}>
@@ -191,7 +192,7 @@ export default function Dashboard() {
                                 </Stack>
                                 );
                             })}
-                            {!deadlines.length && <Typography color="text.secondary">No deadlines have been set yet.</Typography>}
+                            {!visibleDeadlines.length && <Typography color="text.secondary">No outstanding deadlines to show.</Typography>}
                         </Paper>
 
                        
