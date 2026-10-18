@@ -604,6 +604,13 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
   margin-inline: auto;
 }
 
+.page-shell > * {
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+  box-sizing: border-box;
+}
+
 .workspace-topbar {
   position: sticky;
   top: 0;
