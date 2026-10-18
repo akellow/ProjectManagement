@@ -574,13 +574,13 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.navbar-links .MuiButton-root[aria-current="page"] {
+.navbar-links .MuiButton-root.active {
   color: #fff;
   background: #176e66;
   box-shadow: inset 3px 0 0 #9be0d6;
 }
 
-.navbar-links .MuiButton-root[aria-current="page"]:hover {
+.navbar-links .MuiButton-root.active:hover {
   background: #21877c;
 }
 
@@ -596,6 +596,12 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
   box-sizing: border-box;
   margin-left: 250px;
   padding: 0 clamp(20px, 4vw, 56px) 32px;
+}
+
+.page-shell {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
 }
 
 .workspace-topbar {

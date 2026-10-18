@@ -1,6 +1,6 @@
 import { Box, Button, Drawer, IconButton, Typography } from "@mui/material";
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const routePreloaders: Record<string, () => Promise<unknown>> = {
@@ -35,11 +35,13 @@ export default function Navbar() {
     <Button
       key={path}
       color="inherit"
-      component={Link}
+      component={NavLink}
       to={path}
       onClick={closeMobileNav}
       onMouseEnter={() => preloadRoute(path)}
       onFocus={() => preloadRoute(path)}
+      end={path !== "/superadmin"}
+      className={isActive(path) ? "active" : undefined}
       aria-current={isActive(path) ? "page" : undefined}
     >
       {label}

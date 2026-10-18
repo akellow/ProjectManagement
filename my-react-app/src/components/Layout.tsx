@@ -193,7 +193,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         >
           <Alert severity="error" onClose={() => setTopbarError("")}>{topbarError}</Alert>
         </Snackbar>
-        {children}
+        <Box className="page-shell">{children}</Box>
       </Box>
     </Box>
   );

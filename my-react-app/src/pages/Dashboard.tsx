@@ -144,7 +144,7 @@ export default function Dashboard() {
     const summaryCards: { key: DashboardPanel; label: string; value: string | number; detail: string }[] = [
         { key: "projects", label: "Projects", value: projects.length, detail: "Across the workspace" },
         { key: "tasks", label: "Task progress", value: `${progress}%`, detail: `${completedTasks} of ${tasks.length} complete` },
-        { key: "deadlines", label: "Deadlines", value: upcomingDeadlines, detail: `${overdueDeadlines.length} overdue · due in the next 7 days` },
+        { key: "deadlines", label: "Deadlines", value: deadlines.length, detail: `${overdueDeadlines.length} overdue · ${upcomingDeadlines} due in the next 7 days` },
         { key: "risks", label: "Open risks", value: risks.length, detail: "Items needing attention" },
     ];
 
