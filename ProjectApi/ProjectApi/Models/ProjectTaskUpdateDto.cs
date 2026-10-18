@@ -8,4 +8,6 @@ public class ProjectTaskUpdateDto
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string? Priority { get; set; }
+    public int? EmployeeId { get; set; }
+    public int? HoursAllocated { get; set; }
 }

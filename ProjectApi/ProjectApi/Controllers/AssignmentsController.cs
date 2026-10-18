@@ -34,6 +34,10 @@ public class AssignmentsController : ControllerBase
         var task = await _context.ProjectTasks.FindAsync(assignment.TaskId);
         if (employee is null || task is null)
             return BadRequest("A valid task and employee are required.");
+        if (assignment.HoursAllocated < 1)
+            return BadRequest("The assigned period must be at least one hour.");
+        if (await _context.Assignments.AnyAsync(item => item.TaskId == assignment.TaskId && item.EmployeeId == assignment.EmployeeId))
+            return Conflict("This employee is already assigned to the task.");
 
         _context.Assignments.Add(assignment);
         if (employee.NotificationsEnabled && !string.IsNullOrWhiteSpace(employee.UserId))
@@ -55,6 +59,8 @@ public class AssignmentsController : ControllerBase
     {
         var assignment = await _context.Assignments.FindAsync(id);
         if (assignment is null) return NotFound();
+        if (await _context.Assignments.CountAsync(item => item.TaskId == assignment.TaskId) <= 1)
+            return Conflict("A task must have at least one assigned employee.");
         _context.Assignments.Remove(assignment);
         await _context.SaveChangesAsync();
         return Ok(assignment);

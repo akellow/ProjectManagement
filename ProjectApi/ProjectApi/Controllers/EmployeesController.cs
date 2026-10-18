@@ -87,6 +87,13 @@ public class EmployeesController : ControllerBase {
         if (!string.IsNullOrWhiteSpace(currentUserId) && employee.UserId == currentUserId)
             return BadRequest("You cannot remove your own employee profile.");
 
+        var soleTaskAssignment = await _context.Assignments
+            .Where(assignment => assignment.EmployeeId == id)
+            .GroupBy(assignment => assignment.TaskId)
+            .AnyAsync(group => group.Count() == 1);
+        if (soleTaskAssignment)
+            return Conflict("This employee is the only assignee for a task. Assign another employee before removing them.");
+
         _context.Employees.Remove(employee);
         await _context.SaveChangesAsync();
         return Ok(employee);

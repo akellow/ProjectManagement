@@ -25,15 +25,34 @@ public class ProjectTasksController : ControllerBase {
     }
     [HttpPost]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<ProjectTask>> CreateTask(ProjectTask task)
+    public async Task<ActionResult<ProjectTask>> CreateTask(ProjectTaskCreateDto dto)
     {
-        if (task == null)
+        var employee = await _context.Employees.FindAsync(dto.EmployeeId);
+        if (employee is null)
+            return BadRequest("A valid employee must be assigned to the task.");
+        if (!await _context.Projects.AnyAsync(project => project.ProjectId == dto.ProjectId))
+            return BadRequest("A valid project is required.");
+
+        var task = new ProjectTask
         {
-            return BadRequest("Task Data is required.");
-        }
-        task.StartDate = NormalizeUtc(task.StartDate);
-        task.EndDate = NormalizeUtc(task.EndDate);
+            ProjectId = dto.ProjectId,
+            Title = dto.Title,
+            Description = dto.Description,
+            Status = dto.Status,
+            StartDate = NormalizeUtc(dto.StartDate),
+            EndDate = NormalizeUtc(dto.EndDate),
+            Priority = dto.Priority,
+            Assignments =
+            [
+                new Assignment
+                {
+                    EmployeeId = employee.EmployeeId,
+                    HoursAllocated = dto.HoursAllocated
+                }
+            ]
+        };
         _context.ProjectTasks.Add(task);
+        AddAssignmentNotification(employee, task);
         await _context.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetById), new { id = task.ProjectTaskId }, task);
@@ -44,6 +63,28 @@ public class ProjectTasksController : ControllerBase {
     {
         var task = await _context.ProjectTasks.FindAsync(id);
         if (task == null) return NotFound();
+        var assignments = await _context.Assignments.Where(assignment => assignment.TaskId == id).ToListAsync();
+        if (dto.EmployeeId.HasValue)
+        {
+            var employee = await _context.Employees.FindAsync(dto.EmployeeId.Value);
+            if (employee is null)
+                return BadRequest("A valid employee must be assigned to the task.");
+            if (!dto.HoursAllocated.HasValue || dto.HoursAllocated.Value < 1)
+                return BadRequest("The assigned period must be at least one hour.");
+
+            var assignment = assignments.FirstOrDefault(item => item.EmployeeId == employee.EmployeeId);
+            if (assignment is null)
+            {
+                assignment = new Assignment { TaskId = id, EmployeeId = employee.EmployeeId };
+                _context.Assignments.Add(assignment);
+                AddAssignmentNotification(employee, task);
+            }
+            assignment.HoursAllocated = dto.HoursAllocated.Value;
+        }
+        else if (assignments.Count == 0)
+        {
+            return BadRequest("A task must have at least one assigned employee.");
+        }
 
         if (dto.Title is not null) task.Title = dto.Title;
         if (dto.Description is not null) task.Description = dto.Description;
@@ -66,4 +107,17 @@ public class ProjectTasksController : ControllerBase {
         DateTimeKind.Local => value.ToUniversalTime(),
         _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
     };
+
+    private void AddAssignmentNotification(Employee employee, ProjectTask task)
+    {
+        if (employee.NotificationsEnabled && !string.IsNullOrWhiteSpace(employee.UserId))
+        {
+            _context.Notifications.Add(new Notification
+            {
+                UserId = employee.UserId,
+                Message = $"You have been assigned to the task \"{task.Title}\".",
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+    }
 }
