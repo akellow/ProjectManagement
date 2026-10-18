@@ -51,10 +51,14 @@ public sealed class OverdueStatusService(
         var tasks = await context.ProjectTasks
             .Where(task => task.Status.ToLower() != "completed" && task.Status.ToLower() != "overdue")
             .ToListAsync(cancellationToken);
+        var milestones = await context.Milestones
+            .Where(milestone => milestone.Status.ToLower() != "completed")
+            .ToListAsync(cancellationToken);
 
         var changedCount = 0;
         foreach (var project in projects)
         {
+            if (project.EndDate == DateTime.MinValue) continue;
             if (EastAfricaDate(project.EndDate) >= today) continue;
             project.Status = "Overdue";
             changedCount++;
@@ -62,14 +66,48 @@ public sealed class OverdueStatusService(
 
         foreach (var task in tasks)
         {
+            if (task.EndDate == DateTime.MinValue) continue;
             if (EastAfricaDate(task.EndDate) >= today) continue;
             task.Status = "Overdue";
             changedCount++;
         }
 
+        var projectTaskGroups = await context.ProjectTasks
+            .GroupBy(task => task.ProjectId)
+            .Select(group => new
+            {
+                ProjectId = group.Key,
+                TaskCount = group.Count(),
+                AllCompleted = group.All(task => task.Status.ToLower() == "completed")
+            })
+            .ToListAsync(cancellationToken);
+        var completedProjectIds = projectTaskGroups
+            .Where(group => group.TaskCount > 0 && group.AllCompleted)
+            .Select(group => group.ProjectId)
+            .ToHashSet();
+
+        foreach (var milestone in milestones)
+        {
+            if (completedProjectIds.Contains(milestone.ProjectId))
+            {
+                milestone.Status = "Completed";
+                changedCount++;
+                continue;
+            }
+
+            if (milestone.DueDate == DateTime.MinValue)
+                continue;
+
+            if (EastAfricaDate(milestone.DueDate) < today && milestone.Status.ToLower() != "overdue")
+            {
+                milestone.Status = "Overdue";
+                changedCount++;
+            }
+        }
+
         if (changedCount == 0) return;
         await context.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Marked {Count} projects and tasks as overdue.", changedCount);
+        logger.LogInformation("Updated {Count} project, task, and milestone statuses.", changedCount);
     }
 
     private static DateTime EastAfricaDate(DateTime value)

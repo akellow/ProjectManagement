@@ -41,6 +41,7 @@ type PanelItem = {
     name: string;
     description: string;
     status?: string;
+    reminder?: string;
     path: string;
 };
 
@@ -91,33 +92,30 @@ export default function Dashboard() {
     const completedTasks = tasks.filter((task) => task.status.toLowerCase() === "completed").length;
     const progress = tasks.length ? Math.round((completedTasks / tasks.length) * 100) : 0;
     const today = getEATDate(new Date());
-    const sevenDaysFromNow = new Date(`${today}T00:00:00+03:00`);
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-    const lastUpcomingDate = getEATDate(sevenDaysFromNow);
     const deadlines = [
         ...projects.map((project) => ({ id: `project-${project.projectId}`, name: project.name, type: "Project", dueDate: project.endDate, status: project.status, path: "/projects" })),
         ...tasks.map((task) => ({ id: `task-${task.projectTaskId}`, name: task.title, type: "Task", dueDate: task.endDate, status: task.status, path: "/tasks" })),
         ...milestones.map((milestone) => ({ id: `milestone-${milestone.milestoneId}`, name: milestone.name, type: "Milestone", dueDate: milestone.dueDate, status: milestone.status, path: "/milestones" })),
-    ].filter((item) => item.dueDate && !Number.isNaN(new Date(item.dueDate).getTime()))
+    ].filter((item) => hasDeadline(item.dueDate))
         .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime());
     const visibleDeadlines = deadlines.filter((item) => !(item.type === "Task" && item.status.toLowerCase() === "completed"));
-    const overdueDeadlines = deadlines.filter((item) => item.status.toLowerCase() !== "completed" && getEATDate(item.dueDate) < today);
-    const upcomingDeadlines = deadlines.filter((item) => {
-        const deadlineDate = getEATDate(item.dueDate);
-        return item.status.toLowerCase() !== "completed" && deadlineDate >= today && deadlineDate <= lastUpcomingDate;
-    }).length;
+    const overdueDeadlines = visibleDeadlines.filter((item) => item.status.toLowerCase() !== "completed" && getEATDate(item.dueDate) < today);
+    const oneDayReminders = visibleDeadlines.filter((item) =>
+        item.status.toLowerCase() !== "completed" && daysUntil(item.dueDate, today) >= 0 && daysUntil(item.dueDate, today) <= 1);
+    const threeDayReminders = visibleDeadlines.filter((item) =>
+        item.status.toLowerCase() !== "completed" && daysUntil(item.dueDate, today) > 1 && daysUntil(item.dueDate, today) <= 3);
     const panelItems: Record<DashboardPanel, PanelItem[]> = {
         projects: projects.map((project) => ({
             id: `project-${project.projectId}`,
             name: project.name,
-            description: `Ends ${formatEATDate(project.endDate)}`,
+            description: hasDeadline(project.endDate) ? `Ends ${formatEATDate(project.endDate)}` : "No deadline set",
             status: deadlineStatus(project.status, project.endDate, today),
             path: "/projects",
         })),
         tasks: tasks.map((task) => ({
             id: `task-${task.projectTaskId}`,
             name: task.title,
-            description: `Due ${formatEATDate(task.endDate)}`,
+            description: hasDeadline(task.endDate) ? `Due ${formatEATDate(task.endDate)}` : "No deadline set",
             status: deadlineStatus(task.status, task.endDate, today),
             path: "/tasks",
         })),
@@ -126,6 +124,7 @@ export default function Dashboard() {
             name: item.name,
             description: `${item.type} · Due ${formatEATDate(item.dueDate)}`,
             status: deadlineStatus(item.status, item.dueDate, today),
+            reminder: deadlineReminder(item.status, item.dueDate, today),
             path: item.path,
         })),
         risks: risks.map((risk) => ({
@@ -145,7 +144,7 @@ export default function Dashboard() {
     const summaryCards: { key: DashboardPanel; label: string; value: string | number; detail: string }[] = [
         { key: "projects", label: "Projects", value: projects.length, detail: "Across the workspace" },
         { key: "tasks", label: "Task progress", value: `${progress}%`, detail: `${completedTasks} of ${tasks.length} complete` },
-        { key: "deadlines", label: "Deadlines", value: deadlines.length, detail: `${overdueDeadlines.length} overdue · ${upcomingDeadlines} due in the next 7 days` },
+        { key: "deadlines", label: "Deadlines", value: visibleDeadlines.length, detail: `${overdueDeadlines.length} overdue · ${oneDayReminders.length} due within 1 day · ${threeDayReminders.length} due within 3 days` },
         { key: "risks", label: "Open risks", value: risks.length, detail: "Items needing attention" },
     ];
 
@@ -185,10 +184,14 @@ export default function Dashboard() {
                             </Stack>
                             {visibleDeadlines.map((item) => {
                                 const status = deadlineStatus(item.status, item.dueDate, today);
+                                const reminder = deadlineReminder(item.status, item.dueDate, today);
                                 return (
                                 <Stack key={item.id} component="button" type="button" direction="row" onClick={() => navigate(item.path)} sx={{ width: "100%", justifyContent: "space-between", alignItems: "center", gap: 1, py: 1.25, border: 0, borderBottom: "1px solid", borderColor: "divider", color: "inherit", background: "transparent", textAlign: "left", cursor: "pointer" }}>
                                     <Box><Typography>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.type} · Due {formatEATDate(item.dueDate)}</Typography></Box>
-                                    <Chip size="small" label={status} color={status.toLowerCase() === "completed" ? "success" : status.toLowerCase() === "overdue" ? "error" : "default"} />
+                                    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
+                                        {reminder && <Chip size="small" label={reminder} color={reminder === "Overdue" ? "error" : "warning"} />}
+                                        <Chip size="small" label={status} color={status.toLowerCase() === "completed" ? "success" : status.toLowerCase() === "overdue" ? "error" : "default"} />
+                                    </Stack>
                                 </Stack>
                                 );
                             })}
@@ -216,7 +219,10 @@ export default function Dashboard() {
                                 sx={{ width: "100%", justifyContent: "space-between", alignItems: "center", gap: 1, py: 1.25, px: 1, border: 0, borderBottom: "1px solid", borderColor: "divider", color: "inherit", background: "transparent", textAlign: "left", cursor: "pointer", "&:hover": { backgroundColor: "action.hover" } }}
                             >
                                 <Box><Typography>{item.name}</Typography><Typography variant="body2" color="text.secondary">{item.description}</Typography></Box>
-                                {item.status && <Chip size="small" label={item.status} color={item.status.toLowerCase() === "completed" ? "success" : item.status.toLowerCase() === "overdue" ? "error" : "default"} />}
+                                <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
+                                    {item.reminder && <Chip size="small" label={item.reminder} color={item.reminder === "Overdue" ? "error" : "warning"} />}
+                                    {item.status && <Chip size="small" label={item.status} color={item.status.toLowerCase() === "completed" ? "success" : item.status.toLowerCase() === "overdue" ? "error" : "default"} />}
+                                </Stack>
                             </Stack>
                         ))}
                         {activePanel && selectedItems.length === 0 && <Typography color="text.secondary">No {panelTitles[activePanel].toLowerCase()} to show.</Typography>}
@@ -229,6 +235,27 @@ export default function Dashboard() {
 
 function deadlineStatus(status: string, dueDate: string, today: string) {
     if (status.toLowerCase() === "completed") return "Completed";
-    if (status.toLowerCase() === "overdue" || getEATDate(dueDate) < today) return "Overdue";
+    if (status.toLowerCase() === "overdue" || (hasDeadline(dueDate) && getEATDate(dueDate) < today)) return "Overdue";
     return status;
+}
+
+function hasDeadline(value: string | null | undefined) {
+    if (!value) return false;
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime()) && date.getUTCFullYear() > 1;
+}
+
+function daysUntil(dueDate: string, today: string) {
+    const dueDay = Date.parse(`${getEATDate(dueDate)}T00:00:00Z`);
+    const todayDay = Date.parse(`${today}T00:00:00Z`);
+    return Math.round((dueDay - todayDay) / 86_400_000);
+}
+
+function deadlineReminder(status: string, dueDate: string, today: string) {
+    if (status.toLowerCase() === "completed" || !hasDeadline(dueDate)) return "";
+    const days = daysUntil(dueDate, today);
+    if (days < 0) return "Overdue";
+    if (days <= 1) return "1-day reminder";
+    if (days <= 3) return "3-day reminder";
+    return "";
 }

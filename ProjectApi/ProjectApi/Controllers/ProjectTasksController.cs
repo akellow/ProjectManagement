@@ -96,6 +96,22 @@ public class ProjectTasksController : ControllerBase {
         if (dto.Priority is not null) task.Priority = dto.Priority;
 
         await _context.SaveChangesAsync();
+        if (string.Equals(task.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            var projectTasks = await _context.ProjectTasks
+                .Where(item => item.ProjectId == task.ProjectId)
+                .ToListAsync();
+            if (projectTasks.Count > 0 && projectTasks.All(item => string.Equals(item.Status, "Completed", StringComparison.OrdinalIgnoreCase)))
+            {
+                var projectMilestones = await _context.Milestones
+                    .Where(item => item.ProjectId == task.ProjectId && item.Status.ToLower() != "completed")
+                    .ToListAsync();
+                foreach (var milestone in projectMilestones)
+                    milestone.Status = "Completed";
+                if (projectMilestones.Count > 0)
+                    await _context.SaveChangesAsync();
+            }
+        }
         return NoContent();
     } 
 
