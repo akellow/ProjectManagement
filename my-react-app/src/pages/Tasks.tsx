@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Alert, Box, Button, Chip, Divider, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import axios from "axios";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useConfirmAction } from "../components/useConfirmAction";
@@ -144,8 +145,25 @@ function toUtcIso(value: string) { return value ? new Date(`${value}T00:00:00.00
 function formatPeriod(hours: number) { return hours % 24 === 0 ? `${hours / 24} day${hours === 24 ? "" : "s"} (${hours} hours)` : `${hours} hours`; }
 function periodInput(hours: number) { return hours % 24 === 0 ? { period: String(hours / 24), periodUnit: "days" as const } : { period: String(hours), periodUnit: "hours" as const }; }
 function getApiError(error: unknown, fallback: string) {
-  const responseData = (error as { response?: { data?: unknown } })?.response?.data;
-  if (typeof responseData === "string" && responseData) return `${fallback} ${responseData}`;
-  if (responseData && typeof responseData === "object" && "title" in responseData) return `${fallback} ${String(responseData.title)}`;
+  if (axios.isAxiosError(error)) {
+    const responseData: unknown = error.response?.data;
+    if (typeof responseData === "string" && responseData.trim()) return `${fallback} ${responseData}`;
+    if (responseData && typeof responseData === "object") {
+      if ("detail" in responseData && typeof responseData.detail === "string" && responseData.detail.trim())
+        return `${fallback} ${responseData.detail}`;
+      if ("message" in responseData && typeof responseData.message === "string" && responseData.message.trim())
+        return `${fallback} ${responseData.message}`;
+      if ("errors" in responseData && responseData.errors && typeof responseData.errors === "object") {
+        const validationMessages = Object.values(responseData.errors)
+          .flatMap((messages) => Array.isArray(messages) ? messages : [])
+          .filter((message): message is string => typeof message === "string" && message.trim().length > 0);
+        if (validationMessages.length) return `${fallback} ${validationMessages.join(" ")}`;
+      }
+      if ("title" in responseData && typeof responseData.title === "string" && responseData.title.trim())
+        return `${fallback} ${responseData.title}`;
+    }
+    if (error.response?.status) return `${fallback} (HTTP ${error.response.status}).`;
+    return `${fallback} ${error.message}`;
+  }
   return fallback;
 }
