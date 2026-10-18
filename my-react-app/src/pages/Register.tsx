@@ -4,6 +4,38 @@ import { useAuth } from '../context/AuthContext';
 import PasswordField from '../components/PasswordField';
 import GoogleAuthButton from '../components/GoogleAuthButton';
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const maybe = error as { message?: unknown; error?: unknown; details?: unknown; response?: { data?: { message?: unknown } } };
+
+    if (typeof maybe.message === 'string' && maybe.message.trim()) {
+      return maybe.message;
+    }
+
+    if (typeof maybe.error === 'string' && maybe.error.trim()) {
+      return maybe.error;
+    }
+
+    if (typeof maybe.details === 'string' && maybe.details.trim()) {
+      return maybe.details;
+    }
+
+    if (typeof maybe.response?.data?.message === 'string' && maybe.response.data.message.trim()) {
+      return maybe.response.data.message;
+    }
+  }
+
+  return 'Something went wrong while creating your account. Please try again.';
+}
+
 export default function Register() {
   const { signUp, signInWithGoogle } = useAuth();
   const [fullName, setFullName] = useState('');
@@ -36,8 +68,8 @@ export default function Register() {
     try {
       await signUp(email, password, fullName);
       setConfirmationSent(true);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -45,8 +77,8 @@ export default function Register() {
     setError(null);
     try {
       await signInWithGoogle();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     }
   };
 

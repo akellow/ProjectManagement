@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Select, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { eatDateTimeLocalToISOString, formatEATDateTime, toEATDateTimeLocal } from "../utils/dateTime";
 
 type EntityPageProps = {
   title: string;
@@ -106,14 +107,14 @@ export default function EntityPage({ title, endpoint, columns, idKey, fields }: 
           </Table>
         </Paper>
       )}
-      {editingId && <Paper component="form" onSubmit={save} sx={{ p: 3, mt: 2 }}><Stack spacing={2}>{fields.map((field) => field.key === "projectId" ? <Select key={field.key} value={form[field.key] ?? ""} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} displayEmpty required><MenuItem value="" disabled>Select project</MenuItem>{projects.map((project) => <MenuItem key={project.projectId} value={project.projectId}>{project.name}</MenuItem>)}</Select> : field.key === "employeeId" ? <Select key={field.key} value={form[field.key] ?? ""} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} displayEmpty required><MenuItem value="" disabled>Select employee</MenuItem>{employees.map((employee) => <MenuItem key={employee.employeeId} value={employee.employeeId}>{employee.name}</MenuItem>)}</Select> : field.options ? <Select key={field.key} value={form[field.key] ?? ""} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} displayEmpty required><MenuItem value="" disabled>{field.label}</MenuItem>{field.options.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}</Select> : <TextField key={field.key} label={field.label} type={field.type ?? "text"} value={form[field.key] ?? ""} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} required={field.key !== "mitigationPlan"} slotProps={field.type === "datetime-local" ? { inputLabel: { shrink: true } } : undefined} />)}<Stack direction="row" spacing={1}><Button type="submit" variant="contained">Save</Button><Button onClick={() => setEditingId(null)}>Cancel</Button></Stack></Stack></Paper>}
+      {editingId && <Paper component="form" onSubmit={save} sx={{ p: 3, mt: 2 }}><Stack spacing={2}>{fields.map((field) => field.key === "projectId" ? <Select key={field.key} value={form[field.key] ?? ""} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} displayEmpty required><MenuItem value="" disabled>Select project</MenuItem>{projects.map((project) => <MenuItem key={project.projectId} value={project.projectId}>{project.name}</MenuItem>)}</Select> : field.key === "employeeId" ? <Select key={field.key} value={form[field.key] ?? ""} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} displayEmpty required><MenuItem value="" disabled>Select employee</MenuItem>{employees.map((employee) => <MenuItem key={employee.employeeId} value={employee.employeeId}>{employee.name}</MenuItem>)}</Select> : field.options ? <Select key={field.key} value={form[field.key] ?? ""} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} displayEmpty required><MenuItem value="" disabled>{field.label}</MenuItem>{field.options.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}</Select> : <TextField key={field.key} label={field.label} type={field.type ?? "text"} value={form[field.key] ?? ""} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} required={field.key !== "mitigationPlan"} helperText={field.key === "dueDate" ? "East Africa Time (UTC+3)" : undefined} slotProps={field.type === "datetime-local" ? { inputLabel: { shrink: true } } : undefined} />)}<Stack direction="row" spacing={1}><Button type="submit" variant="contained">Save</Button><Button onClick={() => setEditingId(null)}>Cancel</Button></Stack></Stack></Paper>}
     </Box>
   );
 }
 
 function formatFormValue(value: unknown, type?: string) {
   if (type === "riskProbability") return Number(value) >= 0.5 ? "High" : "Low";
-  if (type === "datetime-local" && value) return new Date(String(value)).toISOString().slice(0, 16);
+  if (type === "datetime-local" && value) return toEATDateTimeLocal(String(value));
   if (type === "boolean") return String(Boolean(value));
   return String(value ?? "");
 }
@@ -122,12 +123,13 @@ function toApiValue(value: string, type?: string) {
   if (type === "riskProbability") return value === "High" ? 1 : 0;
   if (type === "number") return Number(value) || 0;
   if (type === "boolean") return value === "true";
-  if (type === "datetime-local") return value ? new Date(value).toISOString() : new Date().toISOString();
+  if (type === "datetime-local") return value ? eatDateTimeLocalToISOString(value) : new Date().toISOString();
   return value;
 }
 
 function formatDisplayValue(value: unknown, key?: string) {
   if (key === "probability") return Number(value) >= 0.5 ? "High" : "Low";
+  if (key === "dueDate" && value) return formatEATDateTime(String(value));
   if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value ?? "-");
 }

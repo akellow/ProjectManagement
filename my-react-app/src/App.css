@@ -574,6 +574,16 @@ html[data-theme="light"] .form-stack > .google-auth-button:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
+.navbar-links .MuiButton-root[aria-current="page"] {
+  color: #fff;
+  background: #176e66;
+  box-shadow: inset 3px 0 0 #9be0d6;
+}
+
+.navbar-links .MuiButton-root[aria-current="page"]:hover {
+  background: #21877c;
+}
+
 .mobile-navbar,
 .mobile-drawer {
   display: none;
