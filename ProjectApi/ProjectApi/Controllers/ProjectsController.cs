@@ -26,6 +26,8 @@ public class ProjectsController : ControllerBase {
     [HttpPost]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<Project>> CreateProject(Project project) {
+        project.StartDate = NormalizeUtc(project.StartDate);
+        project.EndDate = NormalizeUtc(project.EndDate);
         _context.Projects.Add(project);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetProject), new { id = project.ProjectId }, project);
@@ -35,7 +37,17 @@ public class ProjectsController : ControllerBase {
     [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateProject(int id, Project project) {
         if (id != project.ProjectId) return BadRequest();
-        _context.Entry(project).State = EntityState.Modified;
+
+        var existingProject = await _context.Projects.FindAsync(id);
+        if (existingProject is null) return NotFound();
+
+        existingProject.Name = project.Name;
+        existingProject.Description = project.Description;
+        existingProject.StartDate = NormalizeUtc(project.StartDate);
+        existingProject.EndDate = NormalizeUtc(project.EndDate);
+        existingProject.Budget = project.Budget;
+        existingProject.Status = project.Status;
+
         await _context.SaveChangesAsync();
         return NoContent();
     }
@@ -49,4 +61,11 @@ public class ProjectsController : ControllerBase {
         await _context.SaveChangesAsync();
         return Ok(project);
     }
+
+    private static DateTime NormalizeUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+    };
 }

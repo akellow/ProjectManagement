@@ -47,3 +47,21 @@ export function formatEATDateTime(value: string) {
     hour12: true,
   }).format(new Date(value))} EAT`;
 }
+
+export function formatEATDate(value: string) {
+  return `${new Intl.DateTimeFormat("en-GB", {
+    timeZone: eastAfricaTimeZone,
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value))} EAT`;
+}
+
+export function getEATDate(value: string | Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: eastAfricaTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}

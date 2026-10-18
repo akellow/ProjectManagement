@@ -23,6 +23,7 @@ builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<AiReportService>();
+builder.Services.AddHostedService<OverdueStatusService>();
 builder.Services.AddResponseCompression(options =>
 {
     options.Providers.Add<BrotliCompressionProvider>();

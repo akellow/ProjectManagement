@@ -18,7 +18,7 @@ type Employee = { employeeId: number; name: string; role: string };
 type Assignment = { assignmentId: number; taskId: number; employeeId: number; hoursAllocated: number };
 type TaskForm = { projectId: string; title: string; description: string; startDate: string; endDate: string; priority: string; status: string };
 
-const statuses = ["Pending", "In Progress", "Completed"];
+const statuses = ["Pending", "In Progress", "Completed", "Overdue"];
 const priorities = ["Low", "Normal", "High"];
 const emptyForm: TaskForm = { projectId: "", title: "", description: "", startDate: "", endDate: "", priority: "Normal", status: "Pending" };
 

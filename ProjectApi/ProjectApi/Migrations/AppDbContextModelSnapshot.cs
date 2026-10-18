@@ -443,6 +443,10 @@ namespace ProjectApi.Migrations
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("ProjectId");
 
                     b.ToTable("Projects");

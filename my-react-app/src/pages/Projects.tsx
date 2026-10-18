@@ -4,7 +4,7 @@ import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { formatEATDateTime } from "../utils/dateTime";
 
-type Project = { projectId: number; name: string; description?: string; startDate: string; endDate: string; budget: number };
+type Project = { projectId: number; name: string; description?: string; startDate: string; endDate: string; budget: number; status: string };
 type Task = { projectTaskId: number; projectId: number; title: string; description?: string; status: string; priority: string; startDate: string; endDate: string };
 type Employee = { employeeId: number; name: string };
 type Assignment = { assignmentId: number; taskId: number; employeeId: number; hoursAllocated: number };
@@ -13,8 +13,8 @@ type TaskResource = { taskResourceId: number; taskId: number; resourceId: number
 type Milestone = { milestoneId: number; projectId: number; name: string; dueDate: string; status: string };
 type Risk = { riskId: number; projectId: number; description: string; probability: number; impact: string };
 type Communication = { communicationId: number; projectId: number; message: string; date: string };
-type ProjectForm = { name: string; description: string; startDate: string; endDate: string; budget: string };
-const emptyProject: ProjectForm = { name: "", description: "", startDate: "", endDate: "", budget: "" };
+type ProjectForm = { name: string; description: string; startDate: string; endDate: string; budget: string; status: string };
+const emptyProject: ProjectForm = { name: "", description: "", startDate: "", endDate: "", budget: "", status: "Pending" };
 
 export default function Projects() {
   const { user } = useAuth();
@@ -58,12 +58,12 @@ export default function Projects() {
   useEffect(() => { void loadData(); }, []);
 
   function selectProject(project: Project) {
-    setSelectedId(project.projectId); setProjectForm({ name: project.name, description: project.description ?? "", startDate: toDate(project.startDate), endDate: toDate(project.endDate), budget: String(project.budget ?? "") }); setEditing(false);
+    setSelectedId(project.projectId); setProjectForm({ name: project.name, description: project.description ?? "", startDate: toDate(project.startDate), endDate: toDate(project.endDate), budget: String(project.budget ?? ""), status: project.status ?? "Pending" }); setEditing(false);
   }
   const saveProject = async () => {
     if (!projectForm.name.trim()) return;
     const payload = { ...projectForm, budget: Number(projectForm.budget) || 0 };
-    try { if (selectedId && editing) await api.put(`/Projects/${selectedId}`, { ...payload, projectId: selectedId }); else { const response = await api.post<Project>("/Projects", payload); setSelectedId(response.data.projectId); } await loadData(); setEditing(false); } catch { setError("Unable to save project."); }
+    try { if (selectedId && editing) await api.put(`/Projects/${selectedId}`, { ...payload, projectId: selectedId }); else { const response = await api.post<Project>("/Projects", payload); setSelectedId(response.data.projectId); } await loadData(); setEditing(false); } catch (saveError: unknown) { setError(getProjectSaveError(saveError)); }
   };
   const deleteProject = async () => { if (!selectedId || !window.confirm("Delete this project?")) return; try { await api.delete(`/Projects/${selectedId}`); setSelectedId(null); setProjectForm(emptyProject); await loadData(); } catch { setError("Unable to delete project."); } };
   const createRecord = async (endpoint: string, payload: Record<string, unknown>) => { try { await api.post(endpoint, payload); await loadData(); } catch { setError(`Unable to create ${endpoint.slice(1).toLowerCase()}.`); } };
@@ -100,7 +100,7 @@ export default function Projects() {
 }
 
 function ProjectForm({ form, setForm, onSave, onCancel }: { form: ProjectForm; setForm: (value: ProjectForm) => void; onSave: () => void; onCancel: () => void }) { return <Stack spacing={2}><TextField label="Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /><TextField label="Description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} multiline /><Stack direction={{ xs: "column", sm: "row" }} spacing={2}><TextField label="Start date" type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} fullWidth /><TextField label="End date" type="date" value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} fullWidth /><TextField label="Budget (KSh)" type="number" value={form.budget} onChange={(event) => setForm({ ...form, budget: event.target.value })} helperText="Amount in Kenyan shillings (KES)" fullWidth /></Stack><Stack direction="row" spacing={1}><Button variant="contained" onClick={onSave}>Save project</Button><Button onClick={onCancel}>Cancel</Button></Stack></Stack>; }
-function ProjectDetails({ project }: { project: Project }) { return <Stack direction={{ xs: "column", sm: "row" }} spacing={3}><Box><Typography variant="caption">Description</Typography><Typography>{project.description || "No description"}</Typography></Box><Box><Typography variant="caption">Timeline</Typography><Typography>{toDate(project.startDate)} to {toDate(project.endDate)}</Typography></Box><Box><Typography variant="caption">Budget</Typography><Typography>KSh {new Intl.NumberFormat("en-KE", { maximumFractionDigits: 2 }).format(project.budget)}</Typography></Box></Stack>; }
+function ProjectDetails({ project }: { project: Project }) { return <Stack direction={{ xs: "column", sm: "row" }} spacing={3}><Box><Typography variant="caption">Description</Typography><Typography>{project.description || "No description"}</Typography></Box><Box><Typography variant="caption">Timeline</Typography><Typography>{toDate(project.startDate)} to {toDate(project.endDate)}</Typography></Box><Box><Typography variant="caption">Budget</Typography><Typography>KSh {new Intl.NumberFormat("en-KE", { maximumFractionDigits: 2 }).format(project.budget)}</Typography></Box><Box><Typography variant="caption">Status</Typography><Typography><Chip size="small" label={project.status} color={project.status.toLowerCase() === "overdue" ? "error" : project.status.toLowerCase() === "completed" ? "success" : "default"} /></Typography></Box></Stack>; }
 function TaskPanel({ tasks, canManage, onAdd, onUpdate, onDelete }: { tasks: Task[]; canManage: boolean; onAdd: () => void; onUpdate: (taskId: number, payload: Record<string, unknown>) => Promise<void>; onDelete: (taskId: number) => Promise<void> }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState({ title: "", description: "", status: "Pending", priority: "Normal" });
@@ -123,7 +123,7 @@ function TaskPanel({ tasks, canManage, onAdd, onUpdate, onDelete }: { tasks: Tas
           <TextField size="small" label="Task title" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
           <TextField size="small" label="Description" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <Select size="small" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })} fullWidth>{["Pending", "In Progress", "Completed"].map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}</Select>
+            <Select size="small" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })} fullWidth>{["Pending", "In Progress", "Completed", "Overdue"].map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}</Select>
             <Select size="small" value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: event.target.value })} fullWidth>{["Low", "Normal", "High"].map((priority) => <MenuItem key={priority} value={priority}>{priority}</MenuItem>)}</Select>
           </Stack>
           <Stack direction="row" spacing={1}><Button variant="contained" onClick={() => saveEdit(task)}>Save</Button><Button onClick={() => setEditingId(null)}>Cancel</Button></Stack>
@@ -143,3 +143,17 @@ function AssignmentPanel({ canManage, tasks, employees, assignments, onSubmit }:
 function ResourcePanel({ canManage, resources, taskResources, onAdd }: { canManage: boolean; resources: Resource[]; taskResources: TaskResource[]; onAdd: (resourceId: number, taskId: number) => void }) { const [resourceId, setResourceId] = useState(""); const [taskId, setTaskId] = useState(""); return <Stack spacing={2}>{canManage && <Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Select value={resourceId} onChange={(event) => setResourceId(event.target.value)} displayEmpty size="small"><MenuItem value="">Resource</MenuItem>{resources.map((resource) => <MenuItem key={resource.resourceId} value={resource.resourceId}>{resource.name}</MenuItem>)}</Select><TextField label="Task ID" type="number" size="small" value={taskId} onChange={(event) => setTaskId(event.target.value)} /><Button variant="contained" onClick={() => resourceId && taskId && onAdd(Number(resourceId), Number(taskId))}>Add resource</Button></Stack>}{taskResources.map((item) => <Typography key={item.taskResourceId}>Resource {item.resourceId} · Task {item.taskId} · Quantity {item.quantity}</Typography>)}{!taskResources.length && <Typography color="text.secondary">No resources assigned yet.</Typography>}</Stack>; }
 function RecordPanel({ canManage, title, items, actionLabel, onAdd }: { canManage: boolean; title: string; items: string[]; actionLabel: string; onAdd: () => void }) { return <Stack spacing={1}>{canManage && <Button variant="contained" sx={{ alignSelf: "flex-start" }} onClick={onAdd}>{actionLabel}</Button>}{items.map((item) => <Typography key={item} sx={{ borderBottom: "1px solid", borderColor: "divider", py: 1 }}>{item}</Typography>)}{!items.length && <Typography color="text.secondary">No {title.toLowerCase()} recorded yet.</Typography>}</Stack>; }
 function toDate(value: string) { return value ? new Date(value).toISOString().slice(0, 10) : ""; }
+function getProjectSaveError(error: unknown) {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = error.response;
+    if (typeof response === "object" && response !== null && "status" in response) {
+      const status = response.status;
+      const data = "data" in response ? response.data : undefined;
+      if (typeof data === "string" && data.trim()) return data;
+      if (typeof data === "object" && data !== null && "title" in data && typeof data.title === "string") return data.title;
+      if (typeof data === "object" && data !== null && "message" in data && typeof data.message === "string") return data.message;
+      if (typeof status === "number") return `Unable to save project (HTTP ${status}). Check the API logs for details.`;
+    }
+  }
+  return "Unable to save project. Check your connection and try again.";
+}

@@ -10,7 +10,7 @@ type Project = { projectId: number; name: string };
 type ProjectEmployee = { projectEmployeeId: number; projectId: number; employeeId: number };
 type TaskForm = { title: string; description: string; status: string; priority: string; startDate: string; endDate: string };
 
-const statuses = ["Pending", "In Progress", "Completed"];
+const statuses = ["Pending", "In Progress", "Completed", "Overdue"];
 const priorities = ["Low", "Normal", "High"];
 
 export default function Employees() {
