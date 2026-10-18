@@ -73,6 +73,10 @@ using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::tex
 
 The superadmin System Logs page stores administrative audit events and API request outcomes in the API PostgreSQL database. It supports search, severity/status/endpoint filters, preset or custom time ranges, activity charts, and automatic refresh every 15 seconds. Request logs contain the HTTP method, normalized API path, status, actor, and timestamp; request bodies and query strings are not recorded. The `AddPersistentAuditLogs` migration is applied by the API's normal startup migration step.
 
+### Trash and deleted records
+
+Administrators can open Trash from the account menu. Projects, tasks, employees, milestones, risks, resources, communications, and assignments are soft-deleted and can be restored for 30 days. Deleting a project or task also moves its related records as a group; restoring it restores those records together. Expired records are permanently removed by the API's background cleanup service. The `AddTrashRecovery` migration is applied by the API's normal startup migration step.
+
 ### AI reports
 
 The superadmin dashboard can generate portfolio, task/schedule, risk, and resource reports using the Gemini API. Configure `Gemini:ApiKey` as a .NET user secret or set the `Gemini__ApiKey` environment variable on the API host. Optionally set `Gemini:Model` / `Gemini__Model`; the default is `gemini-3.8-flash`. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/).

@@ -5,6 +5,7 @@ using ProjectApi.Data;
 using ProjectApi.Models;
 using System.Security.Claims;
 using System.Text.Json;
+using ProjectApi.Services;
 
 namespace ProjectApi.Controllers;
 
@@ -12,7 +13,8 @@ namespace ProjectApi.Controllers;
 [Route("api/[controller]")]
 public class EmployeesController : ControllerBase {
     private readonly AppDbContext _context;
-    public EmployeesController(AppDbContext context) => _context = context;
+    private readonly TrashService _trashService;
+    public EmployeesController(AppDbContext context, TrashService trashService) { _context = context; _trashService = trashService; }
 
     [HttpGet]
     [Authorize]
@@ -94,7 +96,7 @@ public class EmployeesController : ControllerBase {
         if (soleTaskAssignment)
             return Conflict("This employee is the only assignee for a task. Assign another employee before removing them.");
 
-        _context.Employees.Remove(employee);
+        await _trashService.MarkEmployeeDeletedAsync(employee);
         await _context.SaveChangesAsync();
         return Ok(employee);
     }

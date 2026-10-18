@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProjectApi.Data;
 using ProjectApi.Models;
+using ProjectApi.Services;
 
 namespace ProjectApi.Controllers;
 
@@ -12,7 +13,8 @@ namespace ProjectApi.Controllers;
 public class ProjectEmployeesController : ControllerBase
 {
     private readonly AppDbContext _context;
-    public ProjectEmployeesController(AppDbContext context) => _context = context;
+    private readonly TrashService _trashService;
+    public ProjectEmployeesController(AppDbContext context, TrashService trashService) { _context = context; _trashService = trashService; }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ProjectEmployee>>> GetAssignments() =>
@@ -38,7 +40,7 @@ public class ProjectEmployeesController : ControllerBase
     {
         var assignment = await _context.ProjectEmployees.FindAsync(id);
         if (assignment is null) return NotFound();
-        _context.ProjectEmployees.Remove(assignment);
+        _trashService.MarkDeleted(assignment, "Project assignment", assignment.ProjectEmployeeId.ToString(), $"Project {assignment.ProjectId} · Employee {assignment.EmployeeId}");
         await _context.SaveChangesAsync();
         return NoContent();
     }

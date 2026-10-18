@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ProjectApi.Data;
 using ProjectApi.Models;
+using ProjectApi.Services;
 
 namespace ProjectApi.Controllers;
 
@@ -11,7 +12,8 @@ namespace ProjectApi.Controllers;
 [Authorize]
 public class ProjectsController : ControllerBase {
     private readonly AppDbContext _context;
-    public ProjectsController(AppDbContext context) => _context = context;
+    private readonly TrashService _trashService;
+    public ProjectsController(AppDbContext context, TrashService trashService) { _context = context; _trashService = trashService; }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Project>>> GetProjects() =>
@@ -57,7 +59,7 @@ public class ProjectsController : ControllerBase {
     public async Task<IActionResult> DeleteProject(int id) {
         var project = await _context.Projects.FindAsync(id);
         if (project is null) return NotFound();
-        _context.Projects.Remove(project);
+        await _trashService.MarkProjectDeletedAsync(project);
         await _context.SaveChangesAsync();
         return Ok(project);
     }

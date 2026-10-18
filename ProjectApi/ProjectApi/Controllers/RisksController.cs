@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ProjectApi.Data;
 using ProjectApi.Models;
+using ProjectApi.Services;
 
 namespace ProjectApi.Controllers;
 
@@ -11,7 +12,8 @@ namespace ProjectApi.Controllers;
 [Authorize]
 public class RisksController : ControllerBase {
     private readonly AppDbContext _context;
-    public RisksController(AppDbContext context) => _context = context;
+    private readonly TrashService _trashService;
+    public RisksController(AppDbContext context, TrashService trashService) { _context = context; _trashService = trashService; }
 
     // GET: api/risks
     [HttpGet]
@@ -50,7 +52,7 @@ public class RisksController : ControllerBase {
     public async Task<IActionResult> DeleteRisk(int id) {
         var risk = await _context.Risks.FindAsync(id);
         if (risk is null) return NotFound();
-        _context.Risks.Remove(risk);
+        _trashService.MarkDeleted(risk, "Risk", risk.RiskId.ToString(), risk.Description);
         await _context.SaveChangesAsync();
         return Ok(risk);
     }

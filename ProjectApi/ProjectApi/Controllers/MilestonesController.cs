@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ProjectApi.Data;
 using ProjectApi.Models;
+using ProjectApi.Services;
 
 namespace ProjectApi.Controllers;
 
@@ -11,7 +12,8 @@ namespace ProjectApi.Controllers;
 [Authorize]
 public class MilestonesController : ControllerBase {
     private readonly AppDbContext _context;
-    public MilestonesController(AppDbContext context) => _context = context;
+    private readonly TrashService _trashService;
+    public MilestonesController(AppDbContext context, TrashService trashService) { _context = context; _trashService = trashService; }
 
     // GET: api/milestones
     [HttpGet]
@@ -50,7 +52,7 @@ public class MilestonesController : ControllerBase {
     public async Task<IActionResult> DeleteMilestone(int id) {
         var milestone = await _context.Milestones.FindAsync(id);
         if (milestone is null) return NotFound();
-        _context.Milestones.Remove(milestone);
+        _trashService.MarkDeleted(milestone, "Milestone", milestone.MilestoneId.ToString(), milestone.Name);
         await _context.SaveChangesAsync();
         return Ok(milestone);
     }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using ProjectApi.Models;
+using System.Reflection;
 
 namespace ProjectApi.Data;
 
@@ -12,7 +13,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser> {
         base.OnModelCreating(modelBuilder);
         modelBuilder.Entity<AuditLog>().HasIndex(log => log.Timestamp);
         modelBuilder.Entity<Notification>().HasIndex(notification => notification.UserId);
+        modelBuilder.Entity<TrashEntry>().HasIndex(entry => entry.DeletionGroupId);
+
+        var configureFilter = typeof(AppDbContext).GetMethod(nameof(ConfigureSoftDeleteFilter), BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Unable to configure soft-delete query filters.");
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes().Where(type => typeof(ISoftDeletable).IsAssignableFrom(type.ClrType)))
+            configureFilter.MakeGenericMethod(entityType.ClrType).Invoke(null, [modelBuilder]);
     }
+
+    private static void ConfigureSoftDeleteFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, ISoftDeletable =>
+        modelBuilder.Entity<TEntity>().HasQueryFilter(entity => !entity.IsDeleted);
 
     public DbSet<Project> Projects { get; set; }
     public DbSet<ProjectTask> ProjectTasks { get; set; }
@@ -26,5 +36,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser> {
     public DbSet<ProjectEmployee> ProjectEmployees { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
+    public DbSet<TrashEntry> TrashEntries { get; set; }
 
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ProjectApi.Data;
 using ProjectApi.Models;
+using ProjectApi.Services;
 
 namespace ProjectApi.Controllers;
 
@@ -12,8 +13,9 @@ namespace ProjectApi.Controllers;
 public class AssignmentsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly TrashService _trashService;
 
-    public AssignmentsController(AppDbContext context) => _context = context;
+    public AssignmentsController(AppDbContext context, TrashService trashService) { _context = context; _trashService = trashService; }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Assignment>>> GetAssignments() =>
@@ -61,7 +63,7 @@ public class AssignmentsController : ControllerBase
         if (assignment is null) return NotFound();
         if (await _context.Assignments.CountAsync(item => item.TaskId == assignment.TaskId) <= 1)
             return Conflict("A task must have at least one assigned employee.");
-        _context.Assignments.Remove(assignment);
+        _trashService.MarkDeleted(assignment, "Assignment", assignment.AssignmentId.ToString(), $"Task {assignment.TaskId} · Employee {assignment.EmployeeId}");
         await _context.SaveChangesAsync();
         return Ok(assignment);
     }

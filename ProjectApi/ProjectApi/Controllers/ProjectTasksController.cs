@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ProjectApi.Data;
 using ProjectApi.Models;
+using ProjectApi.Services;
 
 namespace ProjectApi.Controllers;
 
@@ -11,7 +12,8 @@ namespace ProjectApi.Controllers;
 [Authorize]
 public class ProjectTasksController : ControllerBase {
     private readonly AppDbContext _context;
-    public ProjectTasksController(AppDbContext context) => _context = context;
+    private readonly TrashService _trashService;
+    public ProjectTasksController(AppDbContext context, TrashService trashService) { _context = context; _trashService = trashService; }
 
     [HttpGet] public IEnumerable<ProjectTask> Get() => _context.ProjectTasks.ToList();
     [HttpGet("{id}")] public ActionResult<ProjectTask> GetById(int id)
@@ -99,7 +101,7 @@ public class ProjectTasksController : ControllerBase {
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> DeleteTask(int id) { var task = await _context.ProjectTasks.FindAsync(id); if (task is null) return NotFound(); _context.ProjectTasks.Remove(task); await _context.SaveChangesAsync(); return Ok(task); }
+    public async Task<IActionResult> DeleteTask(int id) { var task = await _context.ProjectTasks.FindAsync(id); if (task is null) return NotFound(); await _trashService.MarkTaskDeletedAsync(task); await _context.SaveChangesAsync(); return Ok(task); }
 
     private static DateTime NormalizeUtc(DateTime value) => value.Kind switch
     {

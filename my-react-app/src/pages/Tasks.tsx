@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Alert, Box, Button, Chip, Divider, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useConfirmAction } from "../components/useConfirmAction";
 
 type Task = {
   projectTaskId: number;
@@ -24,6 +25,7 @@ const emptyForm: TaskForm = { projectId: "", title: "", description: "", startDa
 
 export default function Tasks() {
   const { user } = useAuth();
+  const { confirmAction, confirmationDialog } = useConfirmAction();
   const canManage = user?.app_metadata?.role === "admin" || user?.app_metadata?.role === "superadmin";
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -92,7 +94,7 @@ export default function Tasks() {
   }
 
   async function deleteTask() {
-    if (!selectedId || !window.confirm("Delete this task?")) return;
+    if (!selectedId || !await confirmAction("Move this task and its assignments and resource links to Trash? They can be restored together for 30 days.")) return;
     try { await api.delete(`/ProjectTasks/${selectedId}`); setSelectedId(null); setForm(emptyForm); await loadData(null); } catch (error) { setError(getApiError(error, "Unable to delete task.")); }
   }
 
@@ -110,6 +112,7 @@ export default function Tasks() {
 
   async function removeAssignment(id: number) {
     if (selectedAssignments.length <= 1) { setError("A task must have at least one assigned employee."); return; }
+    if (!await confirmAction("Move this employee assignment to Trash? It can be restored for 30 days.")) return;
     try { await api.delete(`/Assignments/${id}`); await loadData(selectedId); } catch (error) { setError(getApiError(error, "Unable to remove assignment.")); }
   }
 
@@ -119,6 +122,7 @@ export default function Tasks() {
       {canManage && <Button variant="contained" onClick={startNewTask}>New task</Button>}
     </Stack>
     {error && <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>{error}</Alert>}
+    {confirmationDialog}
     <Stack direction={{ xs: "column", md: "row" }} sx={{ gap: 2, alignItems: "flex-start" }}>
       <Paper sx={{ width: { xs: "100%", md: 300 }, p: 2 }}><Typography variant="h6" sx={{ mb: 1 }}>All tasks</Typography>{tasks.map((task) => <Button key={task.projectTaskId} fullWidth onClick={() => selectTask(task)} sx={{ justifyContent: "space-between", mb: 0.5 }} variant={selectedId === task.projectTaskId ? "contained" : "text"}>{task.title}<Chip size="small" label={normalizeStatus(task.status)} /></Button>)}{!tasks.length && <Typography color="text.secondary">No tasks yet.</Typography>}</Paper>
       <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>

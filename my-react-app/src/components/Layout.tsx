@@ -11,6 +11,7 @@ type Notification = { notificationId: number; senderName: string; message: strin
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
+  const canManage = user?.app_metadata?.role === "admin" || user?.app_metadata?.role === "superadmin";
   const { preferences, saveSettings } = useSettings();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationAnchor, setNotificationAnchor] = useState<HTMLElement | null>(null);
@@ -179,6 +180,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <BellIcon />
             Notifications
           </MenuItem>
+          {canManage && <MenuItem component={Link} to="/trash" onClick={() => setProfileAnchor(null)}>
+            <TrashIcon />
+            Trash
+          </MenuItem>}
           <Divider />
           <MenuItem onClick={() => { setProfileAnchor(null); void signOut(); }}>
             <SignOutIcon />
@@ -201,6 +206,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 function BellIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>;
+}
+
+function TrashIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2m3 0-.9 14H5.9L5 6m4 4v6m6-6v6" /></svg>;
 }
 
 function CloseIcon() {

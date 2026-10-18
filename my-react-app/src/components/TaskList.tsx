@@ -1,5 +1,6 @@
 import { Button, TextField } from "@mui/material";
 import { useAddTask, useDeleteTask, useTasks, useUpdateTask } from "../services/Query";
+import { useConfirmAction } from "./useConfirmAction";
 
 type Task = { id: number; name: string; status: string };
 
@@ -8,6 +9,13 @@ export default function TaskList() {
     const addTask = useAddTask();
     const deleteTask = useDeleteTask();
     const updateTask = useUpdateTask();
+    const { confirmAction, confirmationDialog } = useConfirmAction();
+
+    async function confirmDelete(taskId: number) {
+        if (await confirmAction("Move this task and its related records to Trash? They can be restored together for 30 days.")) {
+            deleteTask.mutate(taskId);
+        }
+    }
 
     if (isLoading) return <p>Loading tasks...</p>;
     if (error) return <p>Error loading tasks</p>;
@@ -46,7 +54,7 @@ export default function TaskList() {
                         <Button
                         variant="outlined"
                         color="error"
-                        onClick={() => deleteTask.mutate(task.id)}
+                        onClick={() => void confirmDelete(task.id)}
                         style={{ marginLeft: "1rem" }}
                         >
                             Delete
@@ -54,6 +62,7 @@ export default function TaskList() {
                     </li>
                 ))}
             </ul>
+            {confirmationDialog}
         </div>
     );
 }

@@ -1,5 +1,6 @@
 using ProjectApi.Data;
 using ProjectApi.Models;
+using ProjectApi.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace ProjectApi.GraphQL
@@ -23,13 +24,14 @@ namespace ProjectApi.GraphQL
         }
 
         // Bulk Delete
-        public async Task<int> DeleteProjectTasksAsync(List<int> ids, AppDbContext context)
+        public async Task<int> DeleteProjectTasksAsync(List<int> ids, AppDbContext context, TrashService trashService)
         {
             var tasks = await context.ProjectTasks
                                      .Where(t => ids.Contains(t.ProjectTaskId))
                                      .ToListAsync();
 
-            context.ProjectTasks.RemoveRange(tasks);
+            foreach (var task in tasks)
+                await trashService.MarkTaskDeletedAsync(task);
             return await context.SaveChangesAsync();
         }
     }

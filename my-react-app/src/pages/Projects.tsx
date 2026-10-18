@@ -3,6 +3,7 @@ import { Alert, Box, Button, Chip, Divider, MenuItem, Paper, Select, Stack, Tab,
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { formatEATDateTime } from "../utils/dateTime";
+import { useConfirmAction } from "../components/useConfirmAction";
 
 type Project = { projectId: number; name: string; description?: string; startDate: string; endDate: string; budget: number; status: string };
 type Task = { projectTaskId: number; projectId: number; title: string; description?: string; status: string; priority: string; startDate: string; endDate: string };
@@ -18,6 +19,7 @@ const emptyProject: ProjectForm = { name: "", description: "", startDate: "", en
 
 export default function Projects() {
   const { user } = useAuth();
+  const { confirmAction, confirmationDialog } = useConfirmAction();
   const canManage = user?.app_metadata?.role === "admin" || user?.app_metadata?.role === "superadmin";
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -65,14 +67,13 @@ export default function Projects() {
     const payload = { ...projectForm, budget: Number(projectForm.budget) || 0 };
     try { if (selectedId && editing) await api.put(`/Projects/${selectedId}`, { ...payload, projectId: selectedId }); else { const response = await api.post<Project>("/Projects", payload); setSelectedId(response.data.projectId); } await loadData(); setEditing(false); } catch (saveError: unknown) { setError(getProjectSaveError(saveError)); }
   };
-  const deleteProject = async () => { if (!selectedId || !window.confirm("Delete this project?")) return; try { await api.delete(`/Projects/${selectedId}`); setSelectedId(null); setProjectForm(emptyProject); await loadData(); } catch { setError("Unable to delete project."); } };
+  const deleteProject = async () => { if (!selectedId || !await confirmAction("Move this project and its related records to Trash? They can be restored together for 30 days.")) return; try { await api.delete(`/Projects/${selectedId}`); setSelectedId(null); setProjectForm(emptyProject); await loadData(); } catch { setError("Unable to delete project."); } };
   const createRecord = async (endpoint: string, payload: Record<string, unknown>) => { try { await api.post(endpoint, payload); await loadData(); return true; } catch (error: unknown) { setError(getApiErrorMessage(error, `Unable to create ${endpoint.slice(1).toLowerCase()}.`)); return false; } };
   const createTask = async (task: Record<string, unknown>) => { if (!selectedId) return false; return createRecord("/ProjectTasks", { ...task, projectId: selectedId }); };
   const updateTask = async (taskId: number, payload: Record<string, unknown>) => {
     try { await api.put(`/ProjectTasks/${taskId}`, payload); await loadData(); return true; } catch (error: unknown) { setError(getApiErrorMessage(error, "Unable to update project task.")); return false; }
   };
   const deleteTask = async (taskId: number) => {
-    if (!window.confirm("Delete this task?")) return;
     try { await api.delete(`/ProjectTasks/${taskId}`); await loadData(); } catch { setError("Unable to delete project task."); }
   };
   const projectMilestones = milestones.filter((item) => item.projectId === selectedId);
@@ -82,6 +83,7 @@ export default function Projects() {
   return <Box sx={{ maxWidth: 1250, mx: "auto" }}>
     <Stack direction={{ xs: "column", md: "row" }} sx={{ justifyContent: "space-between", gap: 2, mb: 3 }}><Box><Typography variant="h3" component="h1">Projects</Typography></Box>{canManage && <Button variant="contained" onClick={() => { setSelectedId(null); setProjectForm(emptyProject); setEditing(true); }}>New project</Button>}</Stack>
     {error && <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>{error}</Alert>}
+    {confirmationDialog}
     <Stack direction={{ xs: "column", md: "row" }} sx={{ gap: 2, alignItems: "flex-start" }}>
       <Paper sx={{ width: { xs: "100%", md: 280 }, p: 2 }}><Typography variant="h6" sx={{ mb: 1 }}>All projects</Typography>{projects.map((project) => <Button key={project.projectId} fullWidth onClick={() => selectProject(project)} sx={{ justifyContent: "flex-start", mb: 0.5 }} variant={selectedId === project.projectId ? "contained" : "text"}>{project.name}</Button>)}{!projects.length && <Typography color="text.secondary">No projects yet.</Typography>}</Paper>
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -102,6 +104,7 @@ export default function Projects() {
 function ProjectForm({ form, setForm, onSave, onCancel }: { form: ProjectForm; setForm: (value: ProjectForm) => void; onSave: () => void; onCancel: () => void }) { return <Stack spacing={2}><TextField label="Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /><TextField label="Description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} multiline /><Stack direction={{ xs: "column", sm: "row" }} spacing={2}><TextField label="Start date" type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} fullWidth /><TextField label="End date" type="date" value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} slotProps={{ inputLabel: { shrink: true } }} fullWidth /><TextField label="Budget (KSh)" type="number" value={form.budget} onChange={(event) => setForm({ ...form, budget: event.target.value })} helperText="Amount in Kenyan shillings (KES)" fullWidth /></Stack><Stack direction="row" spacing={1}><Button variant="contained" onClick={onSave}>Save project</Button><Button onClick={onCancel}>Cancel</Button></Stack></Stack>; }
 function ProjectDetails({ project }: { project: Project }) { return <Stack direction={{ xs: "column", sm: "row" }} spacing={3}><Box><Typography variant="caption">Description</Typography><Typography>{project.description || "No description"}</Typography></Box><Box><Typography variant="caption">Timeline</Typography><Typography>{toDate(project.startDate)} to {toDate(project.endDate)}</Typography></Box><Box><Typography variant="caption">Budget</Typography><Typography>KSh {new Intl.NumberFormat("en-KE", { maximumFractionDigits: 2 }).format(project.budget)}</Typography></Box><Box><Typography variant="caption">Status</Typography><Typography><Chip size="small" label={project.status} color={project.status.toLowerCase() === "overdue" ? "error" : project.status.toLowerCase() === "completed" ? "success" : "default"} /></Typography></Box></Stack>; }
 function TaskPanel({ tasks, employees, assignments, canManage, onAdd, onUpdate, onDelete }: { tasks: Task[]; employees: Employee[]; assignments: Assignment[]; canManage: boolean; onAdd: (payload: Record<string, unknown>) => Promise<boolean>; onUpdate: (taskId: number, payload: Record<string, unknown>) => Promise<boolean>; onDelete: (taskId: number) => Promise<void> }) {
+  const { confirmAction, confirmationDialog } = useConfirmAction();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [newTask, setNewTask] = useState({ title: "", employeeId: "", period: "1", periodUnit: "hours" });
@@ -162,10 +165,11 @@ function TaskPanel({ tasks, employees, assignments, canManage, onAdd, onUpdate, 
       <Stack key={task.projectTaskId} direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", alignItems: { sm: "center" }, gap: 1, borderBottom: "1px solid", borderColor: "divider", py: 1 }}>
         <Box sx={{ flex: 1 }}><Typography>{task.title}</Typography><Typography variant="body2" color="text.secondary">{task.description || "No description"}</Typography></Box>
         <Chip size="small" label={`${task.status} · ${task.priority}`} />
-        {canManage && <Stack direction="row" spacing={1}><Button size="small" onClick={() => beginEdit(task)}>Edit</Button><Button size="small" color="error" onClick={() => onDelete(task.projectTaskId)}>Delete</Button></Stack>}
+        {canManage && <Stack direction="row" spacing={1}><Button size="small" onClick={() => beginEdit(task)}>Edit</Button><Button size="small" color="error" onClick={async () => { if (await confirmAction("Move this task and its assignments and resource links to Trash? They can be restored together for 30 days.")) await onDelete(task.projectTaskId); }}>Delete</Button></Stack>}
       </Stack>
     ))}
     {!tasks.length && <Typography color="text.secondary">No tasks for this project.</Typography>}
+    {confirmationDialog}
   </Stack>;
 }
 function AssignmentPanel({ canManage, tasks, employees, assignments, onSubmit }: { canManage: boolean; tasks: Task[]; employees: Employee[]; assignments: Assignment[]; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) { return <Stack spacing={2}>{canManage && <Box component="form" onSubmit={onSubmit}><Stack direction={{ xs: "column", sm: "row" }} spacing={1}><Select name="taskId" defaultValue={tasks[0]?.projectTaskId ?? ""} displayEmpty size="small" required><MenuItem value="" disabled>Task</MenuItem>{tasks.map((task) => <MenuItem key={task.projectTaskId} value={task.projectTaskId}>{task.title}</MenuItem>)}</Select><Select name="employeeId" defaultValue={employees[0]?.employeeId ?? ""} displayEmpty size="small" required><MenuItem value="" disabled>Employee</MenuItem>{employees.map((employee) => <MenuItem key={employee.employeeId} value={employee.employeeId}>{employee.name}</MenuItem>)}</Select><TextField name="period" label="Period" type="number" size="small" defaultValue={1} slotProps={{ htmlInput: { min: 1, step: 1 } }} required /><Select name="periodUnit" defaultValue="hours" size="small"><MenuItem value="hours">Hours</MenuItem><MenuItem value="days">Days (24 hours)</MenuItem></Select><Button type="submit" variant="contained">Assign</Button></Stack></Box>}{assignments.map((assignment) => <Typography key={assignment.assignmentId}>Employee {assignment.employeeId} · Task {assignment.taskId} · {formatPeriod(assignment.hoursAllocated)}</Typography>)}{!assignments.length && <Typography color="text.secondary">No employees assigned yet.</Typography>}</Stack>; }

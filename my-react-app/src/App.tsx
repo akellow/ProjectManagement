@@ -26,6 +26,7 @@ const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
 const SystemUsers = lazy(() => import('./pages/SystemUsers'));
 const InviteUser = lazy(() => import('./pages/InviteUser'));
 const SystemLogs = lazy(() => import('./pages/SystemLogs'));
+const Trash = lazy(() => import('./pages/Trash'));
 
 function WorkspaceLayout() {
   return (
@@ -63,6 +64,14 @@ function AppShell() {
           />
           <Route path="/settings" element={<Settings />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route
+            path="/trash"
+            element={
+              <AdminRoute>
+                <Trash />
+              </AdminRoute>
+            }
+          />
           <Route path="/account" element={<Navigate to="/settings" replace />} />
           <Route
             path="/superadmin"

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import api from "../services/api";
+import { useConfirmAction } from "../components/useConfirmAction";
 
 type SystemUser = {
   id: string;
@@ -12,6 +13,7 @@ type SystemUser = {
 };
 
 export default function SystemUsers() {
+  const { confirmAction, confirmationDialog } = useConfirmAction();
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -74,7 +76,7 @@ export default function SystemUsers() {
 
   async function deleteUser(user: SystemUser) {
     if (user.roles.some((role) => role.toLowerCase() === "superadmin")) return;
-    if (!window.confirm(`Delete ${user.userName}'s account? This cannot be undone.`)) return;
+    if (!await confirmAction(`Permanently delete ${user.userName}'s account? Account deletion is not recoverable from Trash.`, "Delete permanently")) return;
     setBusyUserId(user.id);
     setError("");
     setMessage("");
@@ -99,6 +101,7 @@ export default function SystemUsers() {
       <Button component={Link} to="/superadmin" sx={{ mb: 2 }}>Back to superadmin dashboard</Button>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
+      {confirmationDialog}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
         <TextField
           size="small"

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ProjectApi.Data;
 using ProjectApi.Models;
+using ProjectApi.Services;
 
 namespace ProjectApi.Controllers;
 
@@ -11,7 +12,8 @@ namespace ProjectApi.Controllers;
 [Authorize]
 public class TaskResourcesController : ControllerBase {
     private readonly AppDbContext _context;
-    public TaskResourcesController(AppDbContext context) => _context = context;
+    private readonly TrashService _trashService;
+    public TaskResourcesController(AppDbContext context, TrashService trashService) { _context = context; _trashService = trashService; }
 
     // GET: api/taskresources
     [HttpGet]
@@ -50,7 +52,7 @@ public class TaskResourcesController : ControllerBase {
     public async Task<IActionResult> DeleteTaskResource(int id) {
         var taskResource = await _context.TaskResources.FindAsync(id);
         if (taskResource is null) return NotFound();
-        _context.TaskResources.Remove(taskResource);
+        _trashService.MarkDeleted(taskResource, "Task resource", taskResource.TaskResourceId.ToString(), $"Task {taskResource.TaskId} · Resource {taskResource.ResourceId}");
         await _context.SaveChangesAsync();
         return Ok(taskResource);
     }

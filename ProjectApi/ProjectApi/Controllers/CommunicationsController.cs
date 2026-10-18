@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ProjectApi.Data;
 using ProjectApi.Models;
 using System.Security.Claims;
+using ProjectApi.Services;
 
 namespace ProjectApi.Controllers;
 
@@ -12,7 +13,8 @@ namespace ProjectApi.Controllers;
 [Authorize]
 public class CommunicationsController : ControllerBase {
     private readonly AppDbContext _context;
-    public CommunicationsController(AppDbContext context) => _context = context;
+    private readonly TrashService _trashService;
+    public CommunicationsController(AppDbContext context, TrashService trashService) { _context = context; _trashService = trashService; }
 
     // GET: api/communications
     [HttpGet]
@@ -71,7 +73,7 @@ public class CommunicationsController : ControllerBase {
     public async Task<IActionResult> DeleteCommunication(int id) {
         var communication = await _context.Communications.FindAsync(id);
         if (communication is null) return NotFound();
-        _context.Communications.Remove(communication);
+        _trashService.MarkDeleted(communication, "Communication", communication.CommunicationId.ToString(), communication.Message);
         await _context.SaveChangesAsync();
         return Ok(communication);
     }

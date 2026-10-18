@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Alert, Box, Button, Chip, MenuItem, Paper, Select, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useConfirmAction } from "../components/useConfirmAction";
 
 type Employee = { employeeId: number; name: string; role: string; department: string; contactInfo: string; userId: string | null };
 type Task = { projectTaskId: number; projectId: number; title: string; description?: string; status: string; priority: string; startDate: string; endDate: string };
@@ -15,6 +16,7 @@ const priorities = ["Low", "Normal", "High"];
 
 export default function Employees() {
   const { user } = useAuth();
+  const { confirmAction, confirmationDialog } = useConfirmAction();
   const canManage = user?.app_metadata?.role === "admin" || user?.app_metadata?.role === "superadmin";
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -57,7 +59,7 @@ export default function Employees() {
 
   async function removeTask(taskId: number) {
     const assignment = assignments.find((item) => item.employeeId === selectedEmployeeId && item.taskId === taskId);
-    if (!assignment) return;
+    if (!assignment || !await confirmAction("Move this task assignment to Trash? It can be restored for 30 days.")) return;
     try { await api.delete(`/Assignments/${assignment.assignmentId}`); if (selectedTaskId === taskId) { setSelectedTaskId(null); setTaskForm(null); } await loadData(); } catch { setError("Unable to remove task from employee."); }
   }
 
@@ -70,11 +72,12 @@ export default function Employees() {
   }
 
   async function removeProjectAssignment(id: number) {
+    if (!await confirmAction("Move this project assignment to Trash? It can be restored for 30 days.")) return;
     try { await api.delete(`/ProjectEmployees/${id}`); await loadData(); } catch { setError("Unable to remove project assignment."); }
   }
 
   async function deleteEmployee(employeeId: number) {
-    if (!window.confirm("Remove this employee and their assignments and communications? This cannot be undone.")) return;
+    if (!await confirmAction("Move this employee and their assignments and communications to Trash? They can be restored together for 30 days.")) return;
     try {
       await api.delete(`/Employees/${employeeId}`);
       setSelectedEmployeeId(null);
@@ -89,6 +92,7 @@ export default function Employees() {
   return <Box sx={{ maxWidth: 1200, mx: "auto" }}>
     <Typography variant="h3" component="h1">Employees</Typography>
     {error && <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>{error}</Alert>}
+    {confirmationDialog}
     <Stack direction={{ xs: "column", md: "row" }} sx={{ gap: 2, alignItems: "flex-start" }}>
       <Paper sx={{ width: { xs: "100%", md: 300 }, p: 2 }}><Typography variant="h6" sx={{ mb: 1 }}>Employees</Typography>{employees.map((employee) => <Button key={employee.employeeId} fullWidth onClick={() => { setSelectedEmployeeId(employee.employeeId); setSelectedTaskId(null); setTaskForm(null); }} variant={selectedEmployeeId === employee.employeeId ? "contained" : "text"} sx={{ justifyContent: "flex-start", mb: 0.5 }}>{employee.name}</Button>)}{!employees.length && <Typography color="text.secondary">No employees found.</Typography>}</Paper>
       <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
